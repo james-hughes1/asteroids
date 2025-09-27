@@ -59,6 +59,7 @@ n_actions = env.action_space.n
 
 # --- Networks ---
 policy_net = DQN(input_shape, n_actions).to(device)
+print("Processing device: ", next(policy_net.parameters()).device) # Check GPU
 target_net = DQN(input_shape, n_actions).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
@@ -159,6 +160,8 @@ for episode in range(1, num_episodes + 1):
         gif_path = f"gifs/play_episode_{episode}.gif"
         save_gif(frames, gif_path)
         print(f"Episode {episode}: reward={total_reward:.2f}, eval_score={score}, gif saved at {gif_path}")
+    else:
+        print(f"Episode {episode}: reward={total_reward:.2f}")
 
 # --- Plot reward graph ---
 plt.figure()
