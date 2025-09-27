@@ -13,7 +13,9 @@ dependencies = [
     "gymnasium (>=1.2.1,<2.0.0)",
     "opencv-python-headless (>=4.12.0.88,<5.0.0.0)",
     "matplotlib (>=3.10.6,<4.0.0)",
-    "imageio (>=2.37.0,<3.0.0)"
+    "imageio (>=2.37.0,<3.0.0)",
+    "pyyaml (>=6.0.3,<7.0.0)",
+    "argparse (>=1.4.0,<2.0.0)"
 ]
 
 [build-system]

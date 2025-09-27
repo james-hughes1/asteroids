@@ -1,6 +1,8 @@
 # training/train_dqn.py
 
 import os
+import yaml
+import argparse
 import random
 from collections import deque
 
@@ -20,20 +22,32 @@ from utils.preprocess import preprocess_frame, stack_frames
 # --- Device ---
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# --- Config Loading ---
+parser = argparse.ArgumentParser()
+parser.add_argument("--config", type=str, default="config/train_config.yaml")
+args = parser.parse_args()
+
+with open(args.config, "r") as f:
+    config = yaml.safe_load(f)
+
 # --- Hyperparameters ---
-num_frames = 5
-input_shape = (num_frames, 84, 84)
-num_episodes = 500
-gamma = 0.99
-epsilon = 1.0
-epsilon_decay = 0.995
-epsilon_min = 0.1
-batch_size = 32
-learning_rate = 1e-4
-replay_capacity = 10000
-target_update_interval = 10
-save_interval = 1
-max_steps_per_episode = 1000
+num_frames = config["num_frames"]
+input_shape = tuple(config["input_shape"])
+num_episodes = config["num_episodes"]
+max_steps_per_episode = config["max_steps_per_episode"]
+
+gamma = config["gamma"]
+
+epsilon = config["epsilon"]["start"]
+epsilon_decay = config["epsilon"]["decay"]
+epsilon_min = config["epsilon"]["min"]
+
+batch_size = config["batch_size"]
+learning_rate = config["learning_rate"]
+
+replay_capacity = config["replay_capacity"]
+target_update_interval = config["target_update_interval"]
+save_interval = config["save_interval"]
 
 # --- Directories ---
 os.makedirs("models", exist_ok=True)
