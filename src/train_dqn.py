@@ -1,6 +1,7 @@
 # training/train_dqn.py
 
 import os
+import gc
 import yaml
 import argparse
 import random
@@ -159,9 +160,13 @@ for episode in range(1, num_episodes + 1):
         score, steps_played, frames = evaluate_policy(env, policy_net)
         gif_path = f"gifs/play_episode_{episode}.gif"
         save_gif(frames, gif_path)
+        del frames
         print(f"Episode {episode}: reward={total_reward:.2f}, eval_score={score}, gif saved at {gif_path}")
     else:
         print(f"Episode {episode}: reward={total_reward:.2f}")
+
+    # --- Garbage collection ---
+    gc.collect()
 
 # --- Plot reward graph ---
 plt.figure()

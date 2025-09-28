@@ -3,7 +3,7 @@
 num_frames: 5
 input_shape: [5, 84, 84]
 
-num_episodes: 500
+num_episodes: 2
 max_steps_per_episode: 1000
 
 gamma: 0.99
