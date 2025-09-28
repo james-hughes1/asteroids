@@ -60,6 +60,7 @@ class AsteroidsEnv(gym.Env):
         return self._get_obs(), {}
 
     def step(self, action):
+        reward = 0
         if self.done:
             return self._get_obs(), 0.0, True, False, {}
 
@@ -75,6 +76,7 @@ class AsteroidsEnv(gym.Env):
         elif action == 3:  # thrust
             acceleration = 0.2
         elif action == 4:  # shoot
+            reward -= 1  # small penalty for shooting
             if self.bullet_cooldown == 0:
                 if len(self.bullets) < 5:
                     self.bullet_cooldown = 10  # frames until next shot
@@ -112,7 +114,6 @@ class AsteroidsEnv(gym.Env):
             a[1] %= self.height
 
         # --- Collision detection bullets vs asteroids ---
-        reward = 0
         new_asteroids = []
         for a in self.asteroids:
             ax, ay, adx, ady, size = a
