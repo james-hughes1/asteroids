@@ -86,6 +86,7 @@ def evaluate_policy(env, policy_net, num_frames=5, max_steps=1000):
 
     while not done and steps < max_steps:
         state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
+        state_tensor = state_tensor.view(1, num_frames * channels_per_frame, H, W)
         action = policy_net(state_tensor).argmax(dim=1).item()
         obs, reward, done, truncated, info = env.step(action)
         state, stacked_frames = stack_frames(stacked_frames, obs, False, num_frames)
@@ -114,6 +115,7 @@ for episode in range(1, num_episodes + 1):
             action = env.action_space.sample()
         else:
             state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
+            state_tensor = state_tensor.view(1, num_frames * channels_per_frame, H, W)
             action = policy_net(state_tensor).argmax(dim=1).item()
 
         # --- Step environment ---
@@ -132,6 +134,9 @@ for episode in range(1, num_episodes + 1):
             a = torch.tensor(a, dtype=torch.int64).unsqueeze(1).to(device)
             r = torch.tensor(r, dtype=torch.float32).unsqueeze(1).to(device)
             ns = torch.tensor(ns, dtype=torch.float32).to(device)
+            b, f, C, H, W = s.shape
+            s = s.view(b, f * C, H, W)
+            ns = ns.view(b, f * C, H, W)
             d = torch.tensor(d, dtype=torch.float32).unsqueeze(1).to(device)
 
             q_values = policy_net(s).gather(1, a)
