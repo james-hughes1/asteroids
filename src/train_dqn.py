@@ -32,7 +32,8 @@ with open(args.config, "r") as f:
 
 # --- Hyperparameters ---
 num_frames = config["num_frames"]
-input_shape = tuple(config["input_shape"])
+channels_per_frame = config["channels_per_frame"]
+input_shape = tuple([num_frames * channels_per_frame, *config["input_shape_2d"]])
 num_episodes = config["num_episodes"]
 max_steps_per_episode = config["max_steps_per_episode"]
 
@@ -54,7 +55,7 @@ os.makedirs("models", exist_ok=True)
 os.makedirs("gifs", exist_ok=True)
 
 # --- Environment ---
-env = AsteroidsEnv(render_mode="rgb_array", width=512, height=512)
+env = AsteroidsEnv(render_mode="rgb_array", width=400, height=400)
 n_actions = env.action_space.n
 
 # --- Networks ---

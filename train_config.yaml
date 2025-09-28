@@ -1,9 +1,10 @@
 # config/train_config.yaml
 
 num_frames: 5
-input_shape: [5, 84, 84]
+channels_per_frame: 3
+input_shape_2d: [84, 84]
 
-num_episodes: 2
+num_episodes: 1000
 max_steps_per_episode: 1000
 
 gamma: 0.99
@@ -16,6 +17,6 @@ epsilon:
 batch_size: 32
 learning_rate: 0.0001
 
-replay_capacity: 10000
+replay_capacity: 2000
 target_update_interval: 10
 save_interval: 50

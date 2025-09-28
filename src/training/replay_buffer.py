@@ -1,4 +1,3 @@
-# training/replay_buffer.py
 from collections import deque
 import random
 import numpy as np
@@ -9,12 +8,8 @@ class ReplayBuffer:
 
     def push(self, state, action, reward, next_state, done):
         """
-        Push a transition into the buffer.
-        - state and next_state should already be preprocessed NumPy arrays
-          (e.g., shape: (num_frames, 84, 84), dtype: float32)
-        - action, reward, done can be scalars
+        Store state as uint8 to save memory.
         """
-        # make copies to avoid accidental modifications outside
         self.buffer.append((
             np.array(state, copy=True, dtype=np.uint8),
             action,
@@ -24,17 +19,17 @@ class ReplayBuffer:
         ))
 
     def sample(self, batch_size):
-        """
-        Sample a batch from the buffer.
-        Returns NumPy arrays only.
-        """
         batch = random.sample(self.buffer, batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
-        return (np.array(states, dtype=np.float32),
-                np.array(actions, dtype=np.int64),
-                np.array(rewards, dtype=np.float32),
-                np.array(next_states, dtype=np.float32),
-                np.array(dones, dtype=np.float32))
+
+        # Convert to float32 [0,1] for the network
+        states = np.array(states, dtype=np.uint8).astype(np.float32) / 255.0
+        next_states = np.array(next_states, dtype=np.uint8).astype(np.float32) / 255.0
+        actions = np.array(actions, dtype=np.int64)
+        rewards = np.array(rewards, dtype=np.float32)
+        dones = np.array(dones, dtype=np.float32)
+
+        return states, actions, rewards, next_states, dones
 
     def __len__(self):
         return len(self.buffer)

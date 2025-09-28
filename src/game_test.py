@@ -1,7 +1,7 @@
 import pygame
 from asteroids_env.env import AsteroidsEnv
 
-env = AsteroidsEnv(render_mode="human", width=512, height=512, max_steps=1000)
+env = AsteroidsEnv(render_mode="human", width=400, height=400, max_steps=1000)
 obs, _ = env.reset()
 
 done = False
