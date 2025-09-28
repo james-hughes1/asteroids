@@ -1,7 +1,6 @@
 # training/train_dqn.py
 
 import os
-import gc
 import yaml
 import argparse
 import random
@@ -164,9 +163,6 @@ for episode in range(1, num_episodes + 1):
         print(f"Episode {episode}: reward={total_reward:.2f}, eval_score={score}, gif saved at {gif_path}")
     else:
         print(f"Episode {episode}: reward={total_reward:.2f}")
-
-    # --- Garbage collection ---
-    gc.collect()
 
 # --- Plot reward graph ---
 plt.figure()

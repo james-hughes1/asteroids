@@ -16,10 +16,10 @@ class ReplayBuffer:
         """
         # make copies to avoid accidental modifications outside
         self.buffer.append((
-            np.array(state, copy=True, dtype=np.float32),
+            np.array(state, copy=True, dtype=np.uint8),
             action,
             reward,
-            np.array(next_state, copy=True, dtype=np.float32),
+            np.array(next_state, copy=True, dtype=np.uint8),
             done
         ))
 
