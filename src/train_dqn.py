@@ -96,7 +96,7 @@ def evaluate_policy(env, policy_net, num_eval_episodes=5, num_frames=5, max_step
 
     for ep in range(num_eval_episodes):
         stacked_frames = deque(maxlen=num_frames)
-        obs, _ = env.reset()
+        obs, _ = env.reset(seed=42+ep)  # Fixed seed for eval
         state, stacked_frames = stack_frames(
             stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2])
         )

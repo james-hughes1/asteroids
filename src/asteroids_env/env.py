@@ -58,6 +58,10 @@ class AsteroidsEnv(gym.Env):
         self.done = False
 
     def reset(self, seed=None, options=None):
+        super().reset(seed=seed)  # ensures Gym handles seeding
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
         self._init_game()
         return self._get_obs(), {}
 
