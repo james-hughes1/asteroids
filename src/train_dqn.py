@@ -4,6 +4,7 @@ import os
 import yaml
 import argparse
 import random
+import json
 from collections import deque
 
 import torch
@@ -31,28 +32,32 @@ with open(args.config, "r") as f:
     config = yaml.safe_load(f)
 
 # --- Hyperparameters ---
-num_frames = config["num_frames"]
-channels_per_frame = config["channels_per_frame"]
+num_frames = config.get("num_frames", 5)
+channels_per_frame = config.get("channels_per_frame", 3)
 input_shape = tuple([num_frames * channels_per_frame, *config["input_shape_2d"]])
-num_episodes = config["num_episodes"]
-max_steps_per_episode = config["max_steps_per_episode"]
+num_episodes = config.get("num_episodes", 1000)
+max_steps_per_episode = config.get("max_steps_per_episode", 1000)
 
-gamma = config["gamma"]
+gamma = config.get("gamma", 0.99)
 
-epsilon = config["epsilon"]["start"]
-epsilon_decay = config["epsilon"]["decay"]
-epsilon_min = config["epsilon"]["min"]
+epsilon = config["epsilon"].get("start", 1.0)
+epsilon_decay = config["epsilon"].get("decay", 0.995)
+epsilon_min = config["epsilon"].get("min", 0.1)
 
-batch_size = config["batch_size"]
-learning_rate = config["learning_rate"]
+batch_size = config.get("batch_size", 32)
+learning_rate = config.get("learning_rate", 0.0005)
 
-replay_capacity = config["replay_capacity"]
-target_update_interval = config["target_update_interval"]
-save_interval = config["save_interval"]
+replay_capacity = config.get("replay_capacity", 2000)
+target_update_interval = config.get("target_update_interval", 10)
+save_interval = config.get("save_interval", 50)
+
+eval_episodes = config.get("eval_episodes", 10)  # number of episodes during eval
+init_model_path = config.get("init_model_path", "")  # optional init model
 
 # --- Directories ---
 os.makedirs("models", exist_ok=True)
 os.makedirs("gifs", exist_ok=True)
+os.makedirs("logs", exist_ok=True)
 
 # --- Environment ---
 env = AsteroidsEnv(render_mode="rgb_array", width=400, height=400)
@@ -60,8 +65,16 @@ n_actions = env.action_space.n
 
 # --- Networks ---
 policy_net = DQN(input_shape, n_actions).to(device)
-print("Processing device: ", next(policy_net.parameters()).device) # Check GPU
+print("Processing device: ", next(policy_net.parameters()).device)  # Check GPU
 target_net = DQN(input_shape, n_actions).to(device)
+
+# Load from checkpoint if available
+if init_model_path and os.path.isfile(init_model_path):
+    print(f"Loading initial model from {init_model_path}")
+    policy_net.load_state_dict(torch.load(init_model_path, map_location=device))
+else:
+    print("Starting training from scratch.")
+
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
@@ -70,41 +83,60 @@ replay_buffer = ReplayBuffer(replay_capacity)
 
 # --- Reward tracking ---
 episode_rewards = []
+eval_scores = []
 
 # --- Frame stack ---
 stacked_frames = deque(maxlen=num_frames)
 
+
 # --- Evaluation function ---
-def evaluate_policy(env, policy_net, num_frames=5, max_steps=1000):
-    stacked_frames = deque(maxlen=num_frames)
-    obs, _ = env.reset()
-    state, stacked_frames = stack_frames(stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2]))
-    done = False
-    total_reward = 0
-    steps = 0
-    frames = []
+def evaluate_policy(env, policy_net, num_eval_episodes=5, num_frames=5, max_steps=1000):
+    scores = []
+    all_frames = []
 
-    while not done and steps < max_steps:
-        state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
-        state_tensor = state_tensor.view(1, *input_shape)
-        action = policy_net(state_tensor).argmax(dim=1).item()
-        obs, reward, done, truncated, info = env.step(action)
-        state, stacked_frames = stack_frames(stacked_frames, obs, False, num_frames, (input_shape[1], input_shape[2]))
-        total_reward += reward
-        steps += 1
-        frames.append(obs)
+    for ep in range(num_eval_episodes):
+        stacked_frames = deque(maxlen=num_frames)
+        obs, _ = env.reset()
+        state, stacked_frames = stack_frames(
+            stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2])
+        )
+        done = False
+        total_reward = 0
+        steps = 0
+        frames = []
 
-    return total_reward, steps, frames
+        while not done and steps < max_steps:
+            state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
+            state_tensor = state_tensor.view(1, *input_shape)
+            action = policy_net(state_tensor).argmax(dim=1).item()
+            obs, reward, done, truncated, info = env.step(action)
+            state, stacked_frames = stack_frames(
+                stacked_frames, obs, False, num_frames, (input_shape[1], input_shape[2])
+            )
+            total_reward += reward
+            steps += 1
+            frames.append(obs)
+
+        scores.append(total_reward)
+        all_frames.append(frames)
+
+    # Get best episode by score for GIF
+    best_idx = int(np.argmax(scores))
+    return np.mean(scores), np.max(scores), all_frames[best_idx]
+
 
 # --- GIF saving function ---
 def save_gif(frames, filename="play.gif"):
     frames_rgb = [np.array(preprocess_frame(frame)) for frame in frames]
     imageio.mimsave(filename, frames_rgb, fps=30)
 
+
 # --- Training loop ---
 for episode in range(1, num_episodes + 1):
     obs, _ = env.reset()
-    state, stacked_frames = stack_frames(stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2]))
+    state, stacked_frames = stack_frames(
+        stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2])
+    )
     done = False
     total_reward = 0
     step_count = 0
@@ -120,7 +152,9 @@ for episode in range(1, num_episodes + 1):
 
         # --- Step environment ---
         next_obs, reward, done, truncated, info = env.step(action)
-        next_state, stacked_frames = stack_frames(stacked_frames, next_obs, False, num_frames, (input_shape[1], input_shape[2]))
+        next_state, stacked_frames = stack_frames(
+            stacked_frames, next_obs, False, num_frames, (input_shape[1], input_shape[2])
+        )
         total_reward += reward
 
         # --- Store in replay buffer ---
@@ -157,23 +191,44 @@ for episode in range(1, num_episodes + 1):
     if episode % target_update_interval == 0:
         target_net.load_state_dict(policy_net.state_dict())
 
-    # --- Save model and GIF periodically ---
+    # --- Save model and run evaluation periodically ---
     if episode % save_interval == 0:
         model_path = f"models/policy_net_{episode}.pth"
         torch.save(policy_net.state_dict(), model_path)
-        score, steps_played, frames = evaluate_policy(env, policy_net)
+
+        avg_score, best_score, frames = evaluate_policy(env, policy_net, num_eval_episodes=eval_episodes)
         gif_path = f"gifs/play_episode_{episode}.gif"
         save_gif(frames, gif_path)
-        del frames
-        print(f"Episode {episode}: reward={total_reward:.2f}, eval_score={score}, gif saved at {gif_path}")
+
+        eval_scores.append(avg_score)
+        print(
+            f"Episode {episode}: train_reward={total_reward:.2f}, "
+            f"eval_avg={avg_score:.2f}, eval_best={best_score:.2f}, "
+            f"gif saved at {gif_path}"
+        )
     else:
-        print(f"Episode {episode}: reward={total_reward:.2f}")
+        print(f"Episode {episode}: train_reward={total_reward:.2f}")
+
+
+# --- Save results ---
+results = {
+    "episode_rewards": episode_rewards,
+    "eval_scores": eval_scores,
+    "config": config,
+}
+
+with open("logs/training_results.json", "w") as f:
+    json.dump(results, f, indent=2)
 
 # --- Plot reward graph ---
 plt.figure()
-plt.plot(episode_rewards)
+plt.plot(episode_rewards, label="Training rewards")
+if eval_scores:
+    eval_x = list(range(save_interval, num_episodes + 1, save_interval))
+    plt.plot(eval_x, eval_scores, label="Eval avg scores")
 plt.xlabel("Episode")
-plt.ylabel("Total Reward")
+plt.ylabel("Reward")
+plt.legend()
 plt.title("DQN Training Progress")
-plt.savefig("training_scores.png")
+plt.savefig("logs/training_scores.png")
 plt.show()

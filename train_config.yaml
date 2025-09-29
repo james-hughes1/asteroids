@@ -20,3 +20,6 @@ learning_rate: 0.0005
 replay_capacity: 2000
 target_update_interval: 10
 save_interval: 50
+
+eval_episodes: 10
+init_model_path: "models/policy_net_1000_1914_29092025.pth"
