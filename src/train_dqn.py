@@ -6,6 +6,7 @@ import argparse
 import random
 import json
 from collections import deque
+import cv2
 
 import torch
 import torch.nn as nn
