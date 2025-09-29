@@ -78,7 +78,7 @@ stacked_frames = deque(maxlen=num_frames)
 def evaluate_policy(env, policy_net, num_frames=5, max_steps=1000):
     stacked_frames = deque(maxlen=num_frames)
     obs, _ = env.reset()
-    state, stacked_frames = stack_frames(stacked_frames, obs, True, num_frames)
+    state, stacked_frames = stack_frames(stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2]))
     done = False
     total_reward = 0
     steps = 0
@@ -86,10 +86,10 @@ def evaluate_policy(env, policy_net, num_frames=5, max_steps=1000):
 
     while not done and steps < max_steps:
         state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
-        state_tensor = state_tensor.view(1, num_frames * channels_per_frame, H, W)
+        state_tensor = state_tensor.view(1, *input_shape)
         action = policy_net(state_tensor).argmax(dim=1).item()
         obs, reward, done, truncated, info = env.step(action)
-        state, stacked_frames = stack_frames(stacked_frames, obs, False, num_frames)
+        state, stacked_frames = stack_frames(stacked_frames, obs, False, num_frames, (input_shape[1], input_shape[2]))
         total_reward += reward
         steps += 1
         frames.append(obs)
@@ -98,13 +98,13 @@ def evaluate_policy(env, policy_net, num_frames=5, max_steps=1000):
 
 # --- GIF saving function ---
 def save_gif(frames, filename="play.gif"):
-    frames_rgb = [np.array(frame) for frame in frames]
+    frames_rgb = [np.array(preprocess_frame(frame)) for frame in frames]
     imageio.mimsave(filename, frames_rgb, fps=30)
 
 # --- Training loop ---
 for episode in range(1, num_episodes + 1):
     obs, _ = env.reset()
-    state, stacked_frames = stack_frames(stacked_frames, obs, True, num_frames)
+    state, stacked_frames = stack_frames(stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2]))
     done = False
     total_reward = 0
     step_count = 0
@@ -115,12 +115,12 @@ for episode in range(1, num_episodes + 1):
             action = env.action_space.sample()
         else:
             state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
-            state_tensor = state_tensor.view(1, num_frames * channels_per_frame, H, W)
+            state_tensor = state_tensor.view(1, *input_shape)
             action = policy_net(state_tensor).argmax(dim=1).item()
 
         # --- Step environment ---
         next_obs, reward, done, truncated, info = env.step(action)
-        next_state, stacked_frames = stack_frames(stacked_frames, next_obs, False, num_frames)
+        next_state, stacked_frames = stack_frames(stacked_frames, next_obs, False, num_frames, (input_shape[1], input_shape[2]))
         total_reward += reward
 
         # --- Store in replay buffer ---
@@ -134,9 +134,8 @@ for episode in range(1, num_episodes + 1):
             a = torch.tensor(a, dtype=torch.int64).unsqueeze(1).to(device)
             r = torch.tensor(r, dtype=torch.float32).unsqueeze(1).to(device)
             ns = torch.tensor(ns, dtype=torch.float32).to(device)
-            b, f, C, H, W = s.shape
-            s = s.view(b, f * C, H, W)
-            ns = ns.view(b, f * C, H, W)
+            s = s.view(batch_size, *input_shape)
+            ns = ns.view(batch_size, *input_shape)
             d = torch.tensor(d, dtype=torch.float32).unsqueeze(1).to(device)
 
             q_values = policy_net(s).gather(1, a)

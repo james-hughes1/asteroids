@@ -33,7 +33,7 @@ class AsteroidsEnv(gym.Env):
     def _init_game(self):
         # Ship
         self.ship_width = 10
-        self.ship_height = 25
+        self.ship_height = 35
         self.ship_x = self.width / 2
         self.ship_y = self.height / 2
         self.ship_angle = 0
@@ -48,6 +48,9 @@ class AsteroidsEnv(gym.Env):
         self.asteroids = []
         for _ in range(5):
             x, y = random.randint(0, self.width), random.randint(0, self.height)
+            if abs(x - self.ship_x) < 30 and abs(y - self.ship_y) < 30:
+                x += 30
+                y += 30
             dx, dy = random.uniform(-1.5, 1.5), random.uniform(-1.5, 1.5)
             size = random.randint(30, 90)
             self.asteroids.append([x, y, dx, dy, size])
