@@ -126,9 +126,15 @@ def evaluate_policy(env, policy_net, num_eval_episodes=5, num_frames=5, max_step
 
 
 # --- GIF saving function ---
-def save_gif(frames, filename="play.gif"):
-    frames_rgb = [np.array(preprocess_frame(frame)) for frame in frames]
-    imageio.mimsave(filename, frames_rgb, fps=30)
+def save_gif(frames, filename="play.gif", scale=4):
+    """Save a gif, scaling up with nearest-neighbor so pixels stay blocky."""
+    upscaled = []
+    for frame in frames:
+        # frame is HxWx3, resize with NEAREST to keep blocky look
+        h, w, _ = frame.shape
+        enlarged = cv2.resize(frame, (w*scale, h*scale), interpolation=cv2.INTER_NEAREST)
+        upscaled.append(enlarged)
+    imageio.mimsave(filename, upscaled, fps=30)
 
 
 # --- Training loop ---
