@@ -15,7 +15,7 @@ epsilon:
   min: 0.1
 
 batch_size: 32
-learning_rate: 0.0002
+learning_rate: 0.0005
 
 replay_capacity: 2000
 target_update_interval: 10

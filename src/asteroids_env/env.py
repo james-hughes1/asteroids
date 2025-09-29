@@ -48,9 +48,8 @@ class AsteroidsEnv(gym.Env):
         self.asteroids = []
         for _ in range(5):
             x, y = random.randint(0, self.width), random.randint(0, self.height)
-            if abs(x - self.ship_x) < 30 and abs(y - self.ship_y) < 30:
-                x += 30
-                y += 30
+            while abs(x - self.ship_x) < 100 and abs(y - self.ship_y) < 100:
+                x, y = random.randint(0, self.width), random.randint(0, self.height)
             dx, dy = random.uniform(-1.5, 1.5), random.uniform(-1.5, 1.5)
             size = random.randint(30, 90)
             self.asteroids.append([x, y, dx, dy, size])
