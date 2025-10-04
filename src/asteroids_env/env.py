@@ -85,7 +85,6 @@ class AsteroidsEnv(gym.Env):
         elif action == 3:  # thrust
             acceleration = 0.2
         elif action == 4:  # shoot
-            reward -= 1  # small penalty for shooting
             if self.bullet_cooldown == 0:
                 if len(self.bullets) < 5:
                     self.bullet_cooldown = 10  # frames until next shot
@@ -131,7 +130,7 @@ class AsteroidsEnv(gym.Env):
                 if (ax - b[0]) ** 2 + (ay - b[1]) ** 2 < (size / 2) ** 2:
                     hit = True
                     self.bullets.remove(b)
-                    reward += 100 - size  # smaller asteroids give more reward
+                    reward += (100 - size)  # smaller asteroids give more reward
                     if size > 30:
                         # split asteroid
                         for _ in range(2):
