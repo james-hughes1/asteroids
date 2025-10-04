@@ -3,9 +3,13 @@
 num_frames: 5
 channels_per_frame: 3
 input_shape_2d: [128, 128]
+n_actions: 5
 
 num_episodes: 1000
 max_steps_per_episode: 1000
+num_asteroids: 3
+max_asteroid_size: 90
+max_asteroid_speed: 1.0
 
 gamma: 0.99
 
@@ -22,4 +26,4 @@ target_update_interval: 10
 save_interval: 50
 
 eval_episodes: 10
-init_model_path: "models/policy_net_1000_1914_29092025.pth"
+init_model_path: ""

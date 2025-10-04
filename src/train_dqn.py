@@ -19,7 +19,9 @@ import imageio
 from asteroids_env.env import AsteroidsEnv
 from training.dqn_model import DQN
 from training.replay_buffer import ReplayBuffer
+from evaluation.evaluate_policy import evaluate_policy, save_gif
 from utils.preprocess import preprocess_frame, stack_frames
+from utils.model_io import save_model, load_model
 
 # --- Device ---
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -33,9 +35,25 @@ with open(args.config, "r") as f:
     config = yaml.safe_load(f)
 
 # --- Hyperparameters ---
-num_frames = config.get("num_frames", 5)
-channels_per_frame = config.get("channels_per_frame", 3)
-input_shape = tuple([num_frames * channels_per_frame, *config["input_shape_2d"]])
+init_model_path = config.get("init_model_path", "")  # optional init model
+
+# Load from checkpoint if available
+if init_model_path and os.path.isfile(init_model_path):
+    print(f"Loading initial model from {init_model_path}")
+    policy_net, checkpoint_config, n_actions = load_model(init_model_path, device)
+    print("Loaded config:")
+    print(yaml.dump(checkpoint_config, sort_keys=False, default_flow_style=False))
+    num_frames = checkpoint_config.get("num_frames", 5)
+    channels_per_frame = checkpoint_config.get("channels_per_frame", 3)
+    input_shape = tuple([num_frames * channels_per_frame, *checkpoint_config["input_shape_2d"]])
+else:
+    print("Starting training from scratch.")
+    num_frames = config.get("num_frames", 5)
+    channels_per_frame = config.get("channels_per_frame", 3)
+    input_shape = tuple([num_frames * channels_per_frame, *config["input_shape_2d"]])
+    n_actions = config.get("n_actions", 5)
+    policy_net = DQN(input_shape, n_actions).to(device)
+
 num_episodes = config.get("num_episodes", 1000)
 max_steps_per_episode = config.get("max_steps_per_episode", 1000)
 
@@ -52,8 +70,11 @@ replay_capacity = config.get("replay_capacity", 2000)
 target_update_interval = config.get("target_update_interval", 10)
 save_interval = config.get("save_interval", 50)
 
+num_asteroids = config.get("num_asteroids", 5)
+max_asteroid_size = config.get("max_asteroid_size", 90)
+max_asteroid_speed = config.get("max_asteroid_speed", 0.5)
+
 eval_episodes = config.get("eval_episodes", 10)  # number of episodes during eval
-init_model_path = config.get("init_model_path", "")  # optional init model
 
 # --- Directories ---
 os.makedirs("models", exist_ok=True)
@@ -61,21 +82,12 @@ os.makedirs("gifs", exist_ok=True)
 os.makedirs("logs", exist_ok=True)
 
 # --- Environment ---
-env = AsteroidsEnv(render_mode="rgb_array", width=400, height=400)
+env = AsteroidsEnv(render_mode="rgb_array", width=400, height=400, max_steps=max_steps_per_episode, num_asteroids=num_asteroids, max_asteroid_size=max_asteroid_size, max_asteroid_speed=max_asteroid_speed)
 n_actions = env.action_space.n
 
-# --- Networks ---
-policy_net = DQN(input_shape, n_actions).to(device)
+# --- Build target network ---
 print("Processing device: ", next(policy_net.parameters()).device)  # Check GPU
 target_net = DQN(input_shape, n_actions).to(device)
-
-# Load from checkpoint if available
-if init_model_path and os.path.isfile(init_model_path):
-    print(f"Loading initial model from {init_model_path}")
-    policy_net.load_state_dict(torch.load(init_model_path, map_location=device))
-else:
-    print("Starting training from scratch.")
-
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
@@ -88,55 +100,6 @@ eval_scores = []
 
 # --- Frame stack ---
 stacked_frames = deque(maxlen=num_frames)
-
-
-# --- Evaluation function ---
-def evaluate_policy(env, policy_net, num_eval_episodes=5, num_frames=5, max_steps=1000):
-    scores = []
-    all_frames = []
-
-    for ep in range(num_eval_episodes):
-        stacked_frames = deque(maxlen=num_frames)
-        obs, _ = env.reset(seed=42+ep)  # Fixed seed for eval
-        state, stacked_frames = stack_frames(
-            stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2])
-        )
-        done = False
-        total_reward = 0
-        steps = 0
-        frames = []
-
-        while not done and steps < max_steps:
-            state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
-            state_tensor = state_tensor.view(1, *input_shape)
-            action = policy_net(state_tensor).argmax(dim=1).item()
-            obs, reward, done, truncated, info = env.step(action)
-            state, stacked_frames = stack_frames(
-                stacked_frames, obs, False, num_frames, (input_shape[1], input_shape[2])
-            )
-            total_reward += reward
-            steps += 1
-            frames.append(obs)
-
-        scores.append(total_reward)
-        all_frames.append(frames)
-
-    # Get best episode by score for GIF
-    best_idx = int(np.argmax(scores))
-    return np.mean(scores), np.max(scores), all_frames[best_idx]
-
-
-# --- GIF saving function ---
-def save_gif(frames, filename="play.gif", scale=4):
-    """Save a gif, scaling up with nearest-neighbor so pixels stay blocky."""
-    upscaled = []
-    for frame in frames:
-        # frame is HxWx3, resize with NEAREST to keep blocky look
-        h, w, _ = frame.shape
-        enlarged = cv2.resize(frame, (w*scale, h*scale), interpolation=cv2.INTER_NEAREST)
-        upscaled.append(enlarged)
-    imageio.mimsave(filename, upscaled, fps=30)
-
 
 # --- Training loop ---
 for episode in range(1, num_episodes + 1):
@@ -201,9 +164,9 @@ for episode in range(1, num_episodes + 1):
     # --- Save model and run evaluation periodically ---
     if episode % save_interval == 0:
         model_path = f"models/policy_net_{episode}.pth"
-        torch.save(policy_net.state_dict(), model_path)
+        save_model(policy_net, config, n_actions, model_path)
 
-        avg_score, best_score, frames = evaluate_policy(env, policy_net, num_eval_episodes=eval_episodes)
+        avg_score, best_score, frames, _ = evaluate_policy(env, policy_net, input_shape, device, num_frames, max_steps_per_episode, num_eval_episodes=eval_episodes)
         gif_path = f"gifs/play_episode_{episode}.gif"
         save_gif(frames, gif_path)
 
