@@ -18,7 +18,7 @@ import imageio
 
 from asteroids_env.env import AsteroidsEnv
 from training.dqn_model import DQN
-from training.replay_buffer import ReplayBuffer
+from training.replay_buffer import PrioritizedReplayBuffer
 from evaluation.evaluate_policy import evaluate_policy, save_gif
 from utils.preprocess import preprocess_frame, stack_frames
 from utils.model_io import save_model, load_model
@@ -82,7 +82,15 @@ os.makedirs("gifs", exist_ok=True)
 os.makedirs("logs", exist_ok=True)
 
 # --- Environment ---
-env = AsteroidsEnv(render_mode="rgb_array", width=400, height=400, max_steps=max_steps_per_episode, num_asteroids=num_asteroids, max_asteroid_size=max_asteroid_size, max_asteroid_speed=max_asteroid_speed)
+env = AsteroidsEnv(
+    render_mode="rgb_array",
+    width=400,
+    height=400,
+    max_steps=max_steps_per_episode,
+    num_asteroids=num_asteroids,
+    max_asteroid_size=max_asteroid_size,
+    max_asteroid_speed=max_asteroid_speed
+)
 n_actions = env.action_space.n
 
 # --- Build target network ---
@@ -92,7 +100,11 @@ target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
 optimizer = optim.Adam(policy_net.parameters(), lr=learning_rate)
-replay_buffer = ReplayBuffer(replay_capacity)
+
+replay_buffer = PrioritizedReplayBuffer(replay_capacity, alpha=0.6)
+beta_start = 0.4
+beta_frames = num_episodes * max_steps_per_episode
+frame_idx = 0
 
 # --- Reward tracking ---
 episode_rewards = []
@@ -132,24 +144,31 @@ for episode in range(1, num_episodes + 1):
         state = next_state
 
         # --- Update DQN ---
-        if len(replay_buffer) > batch_size:
-            s, a, r, ns, d = replay_buffer.sample(batch_size)
-            s = torch.tensor(s, dtype=torch.float32).to(device)
+        if len(replay_buffer.buffer) > batch_size:
+            beta = min(1.0, beta_start + frame_idx * (1.0 - beta_start) / beta_frames)
+            batch, indices, weights = replay_buffer.sample(batch_size, beta)
+            s, a, r, ns, d = batch
+
+            s = torch.tensor(s, dtype=torch.float32).to(device).view(batch_size, *input_shape)
+            ns = torch.tensor(ns, dtype=torch.float32).to(device).view(batch_size, *input_shape)
             a = torch.tensor(a, dtype=torch.int64).unsqueeze(1).to(device)
             r = torch.tensor(r, dtype=torch.float32).unsqueeze(1).to(device)
-            ns = torch.tensor(ns, dtype=torch.float32).to(device)
-            s = s.view(batch_size, *input_shape)
-            ns = ns.view(batch_size, *input_shape)
             d = torch.tensor(d, dtype=torch.float32).unsqueeze(1).to(device)
+            weights = torch.tensor(weights, dtype=torch.float32).unsqueeze(1).to(device)
 
             q_values = policy_net(s).gather(1, a)
             next_q = target_net(ns).max(1, keepdim=True)[0].detach()
             target = r + gamma * next_q * (1 - d)
 
-            loss = F.mse_loss(q_values, target)
+            td_errors = (q_values - target).detach().cpu().numpy().squeeze()
+            loss = (weights * F.mse_loss(q_values, target, reduction='none')).mean()
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+            replay_buffer.update_priorities(indices, np.abs(td_errors) + 1e-6)
+            frame_idx += 1
 
         step_count += 1
 
@@ -166,7 +185,9 @@ for episode in range(1, num_episodes + 1):
         model_path = f"models/policy_net_{episode}.pth"
         save_model(policy_net, config, n_actions, model_path)
 
-        avg_score, best_score, frames, _ = evaluate_policy(env, policy_net, input_shape, device, num_frames, max_steps_per_episode, num_eval_episodes=eval_episodes)
+        avg_score, best_score, frames, _ = evaluate_policy(
+            env, policy_net, input_shape, device, num_frames, max_steps_per_episode, num_eval_episodes=eval_episodes
+        )
         gif_path = f"gifs/play_episode_{episode}.gif"
         save_gif(frames, gif_path)
 
