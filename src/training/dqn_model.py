@@ -8,11 +8,11 @@ class DQN(nn.Module):
         super().__init__()
         c, h, w = input_shape
         self.conv = nn.Sequential(
-            nn.Conv2d(c, 32, 8, stride=4),
+            nn.Conv2d(c, 32, 8, stride=4, padding_mode="circular"),
             nn.ReLU(),
-            nn.Conv2d(32, 64, 4, stride=2),
+            nn.Conv2d(32, 64, 4, stride=2, padding_mode="circular"),
             nn.ReLU(),
-            nn.Conv2d(64, 64, 3, stride=1),
+            nn.Conv2d(64, 64, 3, stride=1, padding_mode="circular"),
             nn.ReLU()
         )
         conv_out_size = self._get_conv_out(input_shape)
