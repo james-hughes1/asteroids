@@ -149,7 +149,9 @@ for episode in range(1, num_episodes + 1):
             batch, indices, weights = replay_buffer.sample(batch_size, beta)
             s, a, r, ns, d = batch
 
+            s = np.array(s)
             s = torch.tensor(s, dtype=torch.float32).to(device).view(batch_size, *input_shape)
+            ns = np.array(ns)
             ns = torch.tensor(ns, dtype=torch.float32).to(device).view(batch_size, *input_shape)
             a = torch.tensor(a, dtype=torch.int64).unsqueeze(1).to(device)
             r = torch.tensor(r, dtype=torch.float32).unsqueeze(1).to(device)
