@@ -8,12 +8,15 @@ import random
 class AsteroidsEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self, render_mode="rgb_array", width=128, height=128, max_steps=1000):
+    def __init__(self, render_mode="rgb_array", width=128, height=128, max_steps=1000, num_asteroids=5, max_asteroid_size=90, max_asteroid_speed=0.5):
         super().__init__()
 
         self.width = width
         self.height = height
         self.max_steps = max_steps
+        self.num_asteroids = num_asteroids
+        self.max_asteroid_size = max_asteroid_size
+        self.max_asteroid_speed = max_asteroid_speed
         self.render_mode = render_mode
 
         # Discrete actions: nothing, rotate left, rotate right, thrust, shoot
@@ -46,12 +49,12 @@ class AsteroidsEnv(gym.Env):
 
         # Asteroids: list of [x, y, dx, dy, size]
         self.asteroids = []
-        for _ in range(5):
+        for _ in range(self.num_asteroids):
             x, y = random.randint(0, self.width), random.randint(0, self.height)
             while abs(x - self.ship_x) < 100 and abs(y - self.ship_y) < 100:
                 x, y = random.randint(0, self.width), random.randint(0, self.height)
-            dx, dy = random.uniform(-1.5, 1.5), random.uniform(-1.5, 1.5)
-            size = random.randint(30, 90)
+            dx, dy = random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed), random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed)
+            size = random.randint(30, self.max_asteroid_size)
             self.asteroids.append([x, y, dx, dy, size])
 
         self.steps = 0
@@ -139,11 +142,25 @@ class AsteroidsEnv(gym.Env):
                 new_asteroids.append(a)
         self.asteroids = new_asteroids
 
-        # --- Collision ship vs asteroid ---
-        ship_radius = self.ship_height / 2
+        # --- Ship vs asteroids using rotated bounding box ---
+        ship_corners = np.array([
+            [self.ship_x, self.ship_y - self.ship_height/2],
+            [self.ship_x - self.ship_width, self.ship_y + self.ship_height/2],
+            [self.ship_x + self.ship_width, self.ship_y + self.ship_height/2]
+        ])
+        theta = math.radians(self.ship_angle)
+        c, s = math.cos(theta), math.sin(theta)
+        R = np.array([[c, -s], [s, c]])
+        rotated_corners = (ship_corners - np.array([self.ship_x, self.ship_y])) @ R.T + np.array([self.ship_x, self.ship_y])
+        min_x, min_y = rotated_corners.min(axis=0)
+        max_x, max_y = rotated_corners.max(axis=0)
+
         for a in self.asteroids:
             ax, ay, _, _, size = a
-            if (ax - self.ship_x) ** 2 + (ay - self.ship_y) ** 2 < (size / 2 + ship_radius) ** 2:
+            closest_x = np.clip(ax, min_x, max_x)
+            closest_y = np.clip(ay, min_y, max_y)
+            dist2 = (ax - closest_x)**2 + (ay - closest_y)**2
+            if dist2 < (size/2)**2:
                 reward -= 100
                 self.done = True
 
