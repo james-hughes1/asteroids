@@ -6,7 +6,7 @@ input_shape_2d: [128, 128]
 n_actions: 5
 
 num_episodes: 1000
-max_steps_per_episode: 1000
+max_steps_per_episode: 5000
 num_asteroids: 5
 max_asteroid_size: 90
 max_asteroid_speed: 1.0
@@ -18,10 +18,10 @@ epsilon:
   decay: 0.995
   min: 0.1
 
-batch_size: 32
+batch_size: 64
 learning_rate: 0.0005
 
-replay_capacity: 2000
+replay_capacity: 4000
 target_update_interval: 10
 save_interval: 50
 

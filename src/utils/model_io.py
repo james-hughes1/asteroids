@@ -44,7 +44,7 @@ def load_model(model_path, device="cpu"):
         config (dict): Configuration dictionary saved with the model.
         n_actions (int): Number of actions in the environment.
     """
-    checkpoint = torch.load(model_path, map_location=device)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
 
     # Load model info
     config = checkpoint["config"]
@@ -56,7 +56,7 @@ def load_model(model_path, device="cpu"):
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
 
-    print(f"✅ Loaded model from {model_path}")
+    print(f"Loaded model from {model_path}")
     print(f"   - Input shape: {input_shape}")
     print(f"   - Actions: {n_actions}")
 
