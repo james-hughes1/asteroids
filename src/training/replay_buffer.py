@@ -34,9 +34,6 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
-import random
-import numpy as np
-
 class PrioritizedReplayBuffer:
     def __init__(self, capacity, alpha=0.6):
         self.capacity = capacity

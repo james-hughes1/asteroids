@@ -130,11 +130,11 @@ class AsteroidsEnv(gym.Env):
                 if (ax - b[0]) ** 2 + (ay - b[1]) ** 2 < (size / 2) ** 2:
                     hit = True
                     self.bullets.remove(b)
-                    reward += (100 - size)  # smaller asteroids give more reward
+                    reward += (200 - size) / 200  # smaller asteroids give more reward
                     if size > 30:
                         # split asteroid
                         for _ in range(2):
-                            ndx, ndy = random.uniform(-1.5, 1.5), random.uniform(-1.5, 1.5)
+                            ndx, ndy = random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed), random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed)
                             new_asteroids.append([ax, ay, ndx, ndy, size // 2])
                     break
             if not hit:
@@ -160,7 +160,7 @@ class AsteroidsEnv(gym.Env):
             closest_y = np.clip(ay, min_y, max_y)
             dist2 = (ax - closest_x)**2 + (ay - closest_y)**2
             if dist2 < (size/2)**2:
-                reward -= 100
+                reward -= 1
                 self.done = True
 
         self.steps += 1
