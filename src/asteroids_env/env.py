@@ -68,8 +68,8 @@ class AsteroidsEnv(gym.Env):
         self._init_game()
         return self._get_obs(), {}
     
-    def _get_masks(self):
-        """Return binary masks for ship and asteroids for pixel-perfect collision detection."""
+    def _get_masks(self, nearby_asteroids):
+        """Return binary masks for ship and only nearby asteroids for pixel-perfect collision detection."""
         # --- Ship mask ---
         ship_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
         ship_surf.fill((0, 0, 0, 0))  # transparent
@@ -80,7 +80,6 @@ class AsteroidsEnv(gym.Env):
             (self.ship_x - self.ship_width, self.ship_y + self.ship_height / 2),
             (self.ship_x + self.ship_width, self.ship_y + self.ship_height / 2)
         ]
-        # Rotate points around ship center
         theta = math.radians(self.ship_angle)
         cos_t, sin_t = math.cos(theta), math.sin(theta)
         rotated_points = []
@@ -93,9 +92,9 @@ class AsteroidsEnv(gym.Env):
         pygame.draw.polygon(ship_surf, (255, 255, 255), rotated_points)
         ship_mask = pygame.surfarray.array3d(ship_surf).max(axis=2) > 0
 
-        # --- Asteroid masks ---
+        # --- Asteroid masks (only for nearby ones) ---
         asteroid_masks = []
-        for a in self.asteroids:
+        for a in nearby_asteroids:
             ax, ay, _, _, size = a
             ast_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
             ast_surf.fill((0, 0, 0, 0))
@@ -178,12 +177,20 @@ class AsteroidsEnv(gym.Env):
                 new_asteroids.append(a)
         self.asteroids = new_asteroids
 
-        # --- Ship vs asteroids using triangle vs circle collision ---
-        ship_mask, asteroid_masks = self._get_masks()
-        for ast_mask in asteroid_masks:
-            if np.any(ship_mask & ast_mask):
-                reward -= 1
-                self.done = True
+        # --- Ship vs asteroids (broad-phase + precise check) ---
+        ship_radius = max(self.ship_width, self.ship_height)
+        nearby_asteroids = []
+        for a in self.asteroids:
+            ax, ay, _, _, size = a
+            if math.hypot(ax - self.ship_x, ay - self.ship_y) < (size / 2 + ship_radius):
+                nearby_asteroids.append(a)
+
+        if nearby_asteroids:
+            ship_mask, asteroid_masks = self._get_masks(nearby_asteroids)
+            for ast_mask in asteroid_masks:
+                if np.any(ship_mask & ast_mask):
+                    reward -= 1
+                    self.done = True
 
         self.steps += 1
         if self.steps >= self.max_steps:
