@@ -41,7 +41,7 @@ class AsteroidsEnv(gym.Env):
         self.ship_y = self.height / 2
         self.ship_angle = 0
         self.ship_speed = 0
-        self.ship_max_speed = 4
+        self.ship_max_speed = 5
 
         # Bullets: list of [x, y, dx, dy]
         self.bullets = []
@@ -67,6 +67,43 @@ class AsteroidsEnv(gym.Env):
             np.random.seed(seed)
         self._init_game()
         return self._get_obs(), {}
+    
+    def _get_masks(self):
+        """Return binary masks for ship and asteroids for pixel-perfect collision detection."""
+        # --- Ship mask ---
+        ship_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        ship_surf.fill((0, 0, 0, 0))  # transparent
+
+        # Draw triangle ship in white
+        ship_points = [
+            (self.ship_x, self.ship_y - self.ship_height / 2),
+            (self.ship_x - self.ship_width, self.ship_y + self.ship_height / 2),
+            (self.ship_x + self.ship_width, self.ship_y + self.ship_height / 2)
+        ]
+        # Rotate points around ship center
+        theta = math.radians(self.ship_angle)
+        cos_t, sin_t = math.cos(theta), math.sin(theta)
+        rotated_points = []
+        for x, y in ship_points:
+            dx, dy = x - self.ship_x, y - self.ship_y
+            rx = dx * cos_t + dy * sin_t + self.ship_x
+            ry = - dx * sin_t + dy * cos_t + self.ship_y
+            rotated_points.append((int(rx), int(ry)))
+
+        pygame.draw.polygon(ship_surf, (255, 255, 255), rotated_points)
+        ship_mask = pygame.surfarray.array3d(ship_surf).max(axis=2) > 0
+
+        # --- Asteroid masks ---
+        asteroid_masks = []
+        for a in self.asteroids:
+            ax, ay, _, _, size = a
+            ast_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            ast_surf.fill((0, 0, 0, 0))
+            pygame.draw.circle(ast_surf, (255, 255, 255), (int(ax), int(ay)), int(size / 2))
+            ast_mask = pygame.surfarray.array3d(ast_surf).max(axis=2) > 0
+            asteroid_masks.append(ast_mask)
+
+        return ship_mask, asteroid_masks
 
     def step(self, action):
         reward = 0
@@ -74,7 +111,7 @@ class AsteroidsEnv(gym.Env):
             return self._get_obs(), 0.0, True, False, {}
 
         # --- Apply action ---
-        rotation_speed = 5
+        rotation_speed = 8
         acceleration = 0
         bullet_speed = 5
 
@@ -141,25 +178,10 @@ class AsteroidsEnv(gym.Env):
                 new_asteroids.append(a)
         self.asteroids = new_asteroids
 
-        # --- Ship vs asteroids using rotated bounding box ---
-        ship_corners = np.array([
-            [self.ship_x, self.ship_y - self.ship_height/2],
-            [self.ship_x - self.ship_width, self.ship_y + self.ship_height/2],
-            [self.ship_x + self.ship_width, self.ship_y + self.ship_height/2]
-        ])
-        theta = math.radians(self.ship_angle)
-        c, s = math.cos(theta), math.sin(theta)
-        R = np.array([[c, -s], [s, c]])
-        rotated_corners = (ship_corners - np.array([self.ship_x, self.ship_y])) @ R.T + np.array([self.ship_x, self.ship_y])
-        min_x, min_y = rotated_corners.min(axis=0)
-        max_x, max_y = rotated_corners.max(axis=0)
-
-        for a in self.asteroids:
-            ax, ay, _, _, size = a
-            closest_x = np.clip(ax, min_x, max_x)
-            closest_y = np.clip(ay, min_y, max_y)
-            dist2 = (ax - closest_x)**2 + (ay - closest_y)**2
-            if dist2 < (size/2)**2:
+        # --- Ship vs asteroids using triangle vs circle collision ---
+        ship_mask, asteroid_masks = self._get_masks()
+        for ast_mask in asteroid_masks:
+            if np.any(ship_mask & ast_mask):
                 reward -= 1
                 self.done = True
 

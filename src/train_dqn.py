@@ -74,6 +74,9 @@ num_asteroids = config.get("num_asteroids", 5)
 max_asteroid_size = config.get("max_asteroid_size", 90)
 max_asteroid_speed = config.get("max_asteroid_speed", 0.5)
 
+alpha = config.get("alpha", 0.6)
+beta_start = config.get("beta_start", 0.4)
+
 eval_episodes = config.get("eval_episodes", 10)  # number of episodes during eval
 
 # --- Directories ---
@@ -101,8 +104,7 @@ target_net.eval()
 
 optimizer = optim.Adam(policy_net.parameters(), lr=learning_rate)
 
-replay_buffer = PrioritizedReplayBuffer(replay_capacity, alpha=0.6)
-beta_start = 0.4
+replay_buffer = PrioritizedReplayBuffer(replay_capacity, alpha)
 beta_frames = num_episodes * max_steps_per_episode
 frame_idx = 0
 

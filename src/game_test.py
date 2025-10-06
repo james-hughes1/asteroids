@@ -1,7 +1,7 @@
 import pygame
 from asteroids_env.env import AsteroidsEnv
 
-env = AsteroidsEnv(render_mode="human", width=400, height=400, max_steps=1000, num_asteroids=5, max_asteroid_size=90, max_asteroid_speed=1.0)
+env = AsteroidsEnv(render_mode="human", width=400, height=400, max_steps=1000, num_asteroids=4, max_asteroid_size=90, max_asteroid_speed=2.5)
 obs, _ = env.reset()
 
 done = False
@@ -27,6 +27,6 @@ while not done:
         action = 4
 
     obs, reward, done, truncated, info = env.step(action)
-    clock.tick(60)  # limit FPS to 60
+    clock.tick(30)  # limit FPS to 60
 
 env.close()
