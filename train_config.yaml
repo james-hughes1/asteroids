@@ -7,9 +7,9 @@ n_actions: 5
 
 num_episodes: 1000
 max_steps_per_episode: 5000
-num_asteroids: 5
+num_asteroids: 4
 max_asteroid_size: 90
-max_asteroid_speed: 1.0
+max_asteroid_speed: 2.5
 
 gamma: 0.99
 
@@ -24,6 +24,9 @@ learning_rate: 0.0005
 replay_capacity: 4000
 target_update_interval: 10
 save_interval: 50
+
+alpha: 0.6
+beta_start: 0.4
 
 eval_episodes: 10
 init_model_path: ""
