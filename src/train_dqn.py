@@ -19,7 +19,7 @@ import imageio
 from asteroids_env.env import AsteroidsEnv
 from training.dqn_model import DQN
 from training.replay_buffer import PrioritizedReplayBuffer
-from evaluation.evaluate_policy import evaluate_policy, save_gif
+from evaluation.evaluate_policy import evaluate_policy, save_gif, sample_frames
 from utils.preprocess import preprocess_frame, stack_frames
 from utils.model_io import save_model, load_model
 
@@ -58,10 +58,6 @@ num_episodes = config.get("num_episodes", 1000)
 max_steps_per_episode = config.get("max_steps_per_episode", 1000)
 
 gamma = config.get("gamma", 0.99)
-
-epsilon = config["epsilon"].get("start", 1.0)
-epsilon_decay = config["epsilon"].get("decay", 0.995)
-epsilon_min = config["epsilon"].get("min", 0.1)
 
 batch_size = config.get("batch_size", 32)
 learning_rate = config.get("learning_rate", 0.0005)
@@ -127,12 +123,11 @@ for episode in range(1, num_episodes + 1):
 
     while not done and step_count < max_steps_per_episode:
         # --- Select action ---
-        if random.random() < epsilon:
-            action = env.action_space.sample()
-        else:
-            state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
-            state_tensor = state_tensor.view(1, *input_shape)
+        state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
+        state_tensor = state_tensor.view(1, *input_shape)
+        with torch.no_grad():
             action = policy_net(state_tensor).argmax(dim=1).item()
+
 
         # --- Step environment ---
         next_obs, reward, done, truncated, info = env.step(action)
@@ -161,23 +156,27 @@ for episode in range(1, num_episodes + 1):
             weights = torch.tensor(weights, dtype=torch.float32).unsqueeze(1).to(device)
 
             q_values = policy_net(s).gather(1, a)
-            next_q = target_net(ns).max(1, keepdim=True)[0].detach()
+            next_actions = policy_net(ns).argmax(1, keepdim=True)
+            next_q = target_net(ns).gather(1, next_actions).detach()
             target = r + gamma * next_q * (1 - d)
 
+
             td_errors = (q_values - target).detach().cpu().numpy().squeeze()
-            loss = (weights * F.mse_loss(q_values, target, reduction='none')).mean()
+            loss = (weights * F.smooth_l1_loss(q_values, target, reduction='none')).mean()
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+            policy_net.reset_noise()
+            target_net.reset_noise()
+
 
             replay_buffer.update_priorities(indices, np.abs(td_errors) + 1e-6)
             frame_idx += 1
 
         step_count += 1
 
-    # --- Update epsilon ---
-    epsilon = max(epsilon_min, epsilon * epsilon_decay)
     episode_rewards.append(total_reward)
 
     # --- Update target network ---
@@ -193,7 +192,7 @@ for episode in range(1, num_episodes + 1):
             env, policy_net, input_shape, device, num_frames, max_steps_per_episode, num_eval_episodes=eval_episodes
         )
         gif_path = f"gifs/play_episode_{episode}.gif"
-        save_gif(frames, gif_path)
+        save_gif(sample_frames(frames, n=500), gif_path)
 
         eval_scores.append(avg_score)
         print(
