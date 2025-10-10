@@ -29,4 +29,4 @@ alpha: 0.6
 beta_start: 0.4
 
 eval_episodes: 10
-init_model_path: ""
+init_model_path: "models/policy_net_1000_2335_09102025.pth"
