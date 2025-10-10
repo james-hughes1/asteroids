@@ -1,1 +1,15 @@
 __pycache__/
+
+# docs folder auxiliary files except pdf
+/docs/*.aux
+/docs/*.log
+/docs/*.out
+/docs/*.toc
+/docs/*.gz
+/docs/*.nav
+/docs/*.snm
+/docs/*.vrb
+/docs/*.fdb_latexmk
+/docs/*.fls
+/docs/*.synctex.gz
+/docs/*.bib
