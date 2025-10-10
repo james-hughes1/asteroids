@@ -121,6 +121,12 @@ for episode in range(1, num_episodes + 1):
     total_reward = 0
     step_count = 0
 
+    # --- Metrics tracking containers ---
+    episode_tds = []
+    episode_qs = []
+    episode_losses = []
+    action_counts = np.zeros(n_actions)
+
     while not done and step_count < max_steps_per_episode:
         # --- Select action ---
         state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
@@ -128,6 +134,8 @@ for episode in range(1, num_episodes + 1):
         with torch.no_grad():
             action = policy_net(state_tensor).argmax(dim=1).item()
 
+        # --- Track action counts ---
+        action_counts[action] += 1
 
         # --- Step environment ---
         next_obs, reward, done, truncated, info = env.step(action)
@@ -160,9 +168,13 @@ for episode in range(1, num_episodes + 1):
             next_q = target_net(ns).gather(1, next_actions).detach()
             target = r + gamma * next_q * (1 - d)
 
-
             td_errors = (q_values - target).detach().cpu().numpy().squeeze()
             loss = (weights * F.smooth_l1_loss(q_values, target, reduction='none')).mean()
+
+            # --- Track metrics ---
+            episode_tds.extend(np.abs(td_errors).tolist())
+            episode_qs.extend(q_values.detach().cpu().numpy().flatten().tolist())
+            episode_losses.append(loss.item())
 
             optimizer.zero_grad()
             loss.backward()
@@ -171,11 +183,19 @@ for episode in range(1, num_episodes + 1):
             policy_net.reset_noise()
             target_net.reset_noise()
 
-
             replay_buffer.update_priorities(indices, np.abs(td_errors) + 1e-6)
             frame_idx += 1
 
         step_count += 1
+
+    # --- Episode end metrics ---
+    action_probs = action_counts / np.sum(action_counts + 1e-10)
+    action_entropy = -np.sum(action_probs * np.log(action_probs + 1e-10))
+
+    mean_td = np.mean(episode_tds) if episode_tds else 0
+    std_td = np.std(episode_tds) if episode_tds else 0
+    mean_q = np.mean(episode_qs) if episode_qs else 0
+    mean_loss = np.mean(episode_losses) if episode_losses else 0
 
     episode_rewards.append(total_reward)
 
@@ -202,7 +222,12 @@ for episode in range(1, num_episodes + 1):
         )
     else:
         print(f"Episode {episode}: train_reward={total_reward:.2f}")
-
+        print(
+            f"   - TD: mean={mean_td:.4f}, std={std_td:.4f} | "
+            f"Q: mean={mean_q:.4f} | Loss: {mean_loss:.4f} | "
+            f"Action Entropy: {action_entropy:.4f} | "
+            f"Steps: {step_count}"
+        )
 
 # --- Save results ---
 results = {

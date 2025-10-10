@@ -2,7 +2,7 @@ import argparse
 import torch
 from training.dqn_model import DQN        # your DQN class
 from asteroids_env.env import AsteroidsEnv  # your game environment
-from evaluation.evaluate_policy import evaluate_policy, save_gif
+from evaluation.evaluate_policy import evaluate_policy, save_gif, sample_frames
 from utils.model_io import load_model
 import yaml
 import numpy as np
@@ -19,7 +19,7 @@ device = torch.device(args.device)
 max_steps = 10000
 
 # # --- Load model ---
-env = AsteroidsEnv(render_mode="rgb_array", width=400, height=400, max_steps=max_steps, num_asteroids=5, max_asteroid_size=90, max_asteroid_speed=1.0)
+env = AsteroidsEnv(render_mode="rgb_array", width=400, height=400, max_steps=max_steps, num_asteroids=4, max_asteroid_size=90, max_asteroid_speed=2.5)
 model, config, n_actions = load_model(args.model_path, device)
 num_frames = config.get("num_frames", 5)
 channels_per_frame = config.get("channels_per_frame", 3)
@@ -33,12 +33,6 @@ best_reward = -float("inf")
 best_frames = None
 
 avg_reward, best_reward, best_frames, most_steps_frames = evaluate_policy(env, model, input_shape, args.device, num_frames=num_frames, max_steps=max_steps, num_eval_episodes=args.episodes)
-
-def sample_frames(frames, n=200):
-    if len(frames) <= n:
-        return frames  # no need to sample if short
-    idxs = np.linspace(0, len(frames) - 1, n, dtype=int)
-    return [frames[i] for i in idxs]
 
 print(f"Best episode reward = {best_reward:.2f}, Average reward over {args.episodes} episodes = {avg_reward:.2f}")
 save_gif(sample_frames(best_frames, n=200), "gifs/best_episode.gif")

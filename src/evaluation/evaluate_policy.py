@@ -89,3 +89,9 @@ def save_gif(frames, filename="gifs/play.gif", scale=4):
         enlarged = cv2.resize(frame, (w*scale, h*scale), interpolation=cv2.INTER_NEAREST)
         upscaled.append(enlarged)
     imageio.mimsave(filename, upscaled, fps=30)
+
+def sample_frames(frames, n=200):
+    if len(frames) <= n:
+        return frames  # no need to sample if short
+    idxs = np.linspace(0, len(frames) - 1, n, dtype=int)
+    return [frames[i] for i in idxs]
