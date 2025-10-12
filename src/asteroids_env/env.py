@@ -43,6 +43,11 @@ class AsteroidsEnv(gym.Env):
         self.ship_speed = 0
         self.ship_max_speed = 5
 
+        self.bar_width = 10
+        self.bar_height = self.ship_height
+        self.cross_width = self.ship_width*3
+        self.cross_height = 10
+
         # Bullets: list of [x, y, dx, dy]
         self.bullets = []
         self.bullet_cooldown = 0
@@ -70,27 +75,27 @@ class AsteroidsEnv(gym.Env):
     
     def _get_masks(self, nearby_asteroids):
         """Return binary masks for ship and only nearby asteroids for pixel-perfect collision detection."""
-        # --- Ship mask ---
-        ship_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        ship_surf.fill((0, 0, 0, 0))  # transparent
+        # --- Ship mask (T shape) ---
+        ship_surf = pygame.Surface((self.ship_width*4, self.ship_height*2), pygame.SRCALPHA)
+        ship_surf.fill((0, 0, 0, 0))
 
-        # Draw triangle ship in white
-        ship_points = [
-            (self.ship_x, self.ship_y - self.ship_height / 2),
-            (self.ship_x - self.ship_width, self.ship_y + self.ship_height / 2),
-            (self.ship_x + self.ship_width, self.ship_y + self.ship_height / 2)
-        ]
-        theta = math.radians(self.ship_angle)
-        cos_t, sin_t = math.cos(theta), math.sin(theta)
-        rotated_points = []
-        for x, y in ship_points:
-            dx, dy = x - self.ship_x, y - self.ship_y
-            rx = dx * cos_t + dy * sin_t + self.ship_x
-            ry = - dx * sin_t + dy * cos_t + self.ship_y
-            rotated_points.append((int(rx), int(ry)))
+        # vertical stem
+        pygame.draw.rect(ship_surf, (255, 255, 255), 
+                        ((ship_surf.get_width() - self.bar_width)//2, self.cross_height, self.bar_width, self.bar_height))
 
-        pygame.draw.polygon(ship_surf, (255, 255, 255), rotated_points)
-        ship_mask = pygame.surfarray.array3d(ship_surf).max(axis=2) > 0
+        # horizontal crossbar
+        pygame.draw.rect(ship_surf, (255, 255, 255), 
+                        ((ship_surf.get_width() - self.cross_width)//2, self.ship_height, self.cross_width, self.cross_height))
+
+        # rotate ship according to angle
+        rotated_ship = pygame.transform.rotate(ship_surf, self.ship_angle)
+
+        rotated_ship = pygame.transform.rotate(ship_surf, self.ship_angle)
+        rect = rotated_ship.get_rect(center=(self.ship_x, self.ship_y))
+        final_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        final_surf.fill((0, 0, 0, 0))
+        final_surf.blit(rotated_ship, rect.topleft)
+        ship_mask = pygame.surfarray.array3d(final_surf).max(axis=2) > 0
 
         # --- Asteroid masks (only for nearby ones) ---
         asteroid_masks = []
@@ -192,6 +197,17 @@ class AsteroidsEnv(gym.Env):
                     reward -= 1
                     self.done = True
 
+                    # # --- Dump masks to PNG for debugging ---
+                    # import imageio
+                    # combined_mask = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+                    # combined_mask[ship_mask] = [0, 0, 255]  # ship in blue
+                    # combined_mask[ast_mask] = [255, 0, 0]   # colliding asteroid in red
+
+                    # combined_mask = np.rot90(combined_mask, 1)  # 180 degrees
+                    # combined_mask = np.flipud(combined_mask)  # horizontal flip
+                    # imageio.imwrite("collision_debug.png", combined_mask)
+
+
         self.steps += 1
         if self.steps >= self.max_steps:
             self.done = True
@@ -209,15 +225,21 @@ class AsteroidsEnv(gym.Env):
 
         # draw bullets
         for b in self.bullets:
-            pygame.draw.circle(surface, (0, 255, 0), (int(b[0]), int(b[1])), 2)
+            pygame.draw.circle(surface, (0, 255, 0), (int(b[0]), int(b[1])), 4)
 
-        # draw ship (thin triangle)
-        ship_surf = pygame.Surface((self.ship_width*2, self.ship_height), pygame.SRCALPHA)
-        pygame.draw.polygon(
-            ship_surf,
-            (0, 0, 255),
-            [(self.ship_width, 0), (0, self.ship_height), (self.ship_width*2, self.ship_height)],
-        )
+        # --- draw ship as T ---
+        ship_surf = pygame.Surface((self.ship_width*4, self.ship_height*2), pygame.SRCALPHA)
+        ship_surf.fill((0,0,0,0))
+
+        # vertical stem
+        pygame.draw.rect(ship_surf, (0, 0, 255), 
+                        ((ship_surf.get_width() - self.bar_width)//2, self.cross_height, self.bar_width, self.bar_height))
+        
+        # horizontal crossbar
+        pygame.draw.rect(ship_surf, (0, 0, 255), 
+                        ((ship_surf.get_width() - self.cross_width)//2, self.ship_height, self.cross_width, self.cross_height))
+
+        # rotate ship according to angle
         rotated_ship = pygame.transform.rotate(ship_surf, self.ship_angle)
         rect = rotated_ship.get_rect(center=(self.ship_x, self.ship_y))
         surface.blit(rotated_ship, rect.topleft)
