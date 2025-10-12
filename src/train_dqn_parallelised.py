@@ -278,11 +278,6 @@ while frame_idx < max_frames:
     if frame_idx % target_update_interval < num_envs:
         target_net.load_state_dict(policy_net.state_dict())
 
-    # --- Logging & evaluation ---
-    if len(completed_returns) >= num_envs:
-        avg_recent = np.mean(completed_returns[-num_envs:])
-        print(f"Frame {frame_idx:,}: mean recent episode reward = {avg_recent:.2f}")
-
     if frame_idx % save_interval < num_envs:
         model_path = f"models/policy_net_{frame_idx}.pth"
         save_model(policy_net, config, n_actions, model_path)
