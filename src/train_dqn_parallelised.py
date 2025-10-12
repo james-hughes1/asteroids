@@ -236,7 +236,7 @@ while frame_idx < max_frames:
 
         mean_td = float(np.mean(logging_tds)) if logging_tds else 0.0
         std_td = float(np.std(logging_tds)) if logging_tds else 0.0
-        mean_q = float(logging_sorted_q / logging_q_count) if logging_q_count > 0 else 0.0
+        mean_q = logging_sorted_q / logging_q_count if logging_q_count > 0 else 0.0
         mean_loss = float(np.mean(logging_losses)) if logging_losses else 0.0
 
         # Episode stats over last 100 episodes or fewer
@@ -246,7 +246,7 @@ while frame_idx < max_frames:
         avg_recent_length = float(np.mean(recent_lengths)) if recent_lengths else 0.0
 
         # --- Print nicely ---
-        print(f"Frame {frame_idx:,} | Loss={mean_loss:.4f} | Q={mean_q:.2f} | "
+        print(f"Frame {frame_idx:,} | Loss={mean_loss:.4f} | Q means sorted={mean_q} | "
             f"TD={mean_td:.3f}±{std_td:.3f} | Entropy={action_entropy:.3f} | "
             f"Recent reward={avg_recent_reward:.2f} | Avg ep length={avg_recent_length:.1f}")
 
@@ -254,7 +254,7 @@ while frame_idx < max_frames:
         log_row = {
             "frame": frame_idx,
             "mean_loss": mean_loss,
-            "mean_q": mean_q,
+            "mean_q": float(np.mean(mean_q)),
             "td_mean": mean_td,
             "td_std": std_td,
             "action_entropy": action_entropy,
