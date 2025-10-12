@@ -1,6 +1,6 @@
 # config/train_config.yaml
 
-num_frames: 5
+num_frames: 4
 channels_per_frame: 3
 input_shape_2d: [128, 128]
 n_actions: 5
@@ -20,9 +20,9 @@ gamma: 0.99
 #   min: 0.1
 
 batch_size: 64
-learning_rate: 0.0001
+learning_rate: 0.0002
 
-replay_capacity: 20000
+replay_capacity: 50000
 target_update_interval: 10000
 save_interval: 100000
 log_interval: 100000
