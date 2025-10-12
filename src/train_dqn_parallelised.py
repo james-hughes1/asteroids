@@ -219,8 +219,6 @@ while frame_idx < max_frames:
         loss = (weights * F.smooth_l1_loss(q_values, target, reduction="none")).mean()
 
         logging_tds.extend(np.abs(td_errors).tolist())
-        if frame_idx == 144:
-            print(q_all)
         sorted_qs = np.sort(q_all, axis=1)[:, ::-1]  # shape: (batch_size, n_actions), largest first
         logging_sorted_q += sorted_qs.sum(axis=0)
         logging_q_count += sorted_qs.shape[0]
