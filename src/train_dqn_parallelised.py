@@ -282,9 +282,21 @@ while frame_idx < max_frames:
         model_path = f"models/policy_net_{frame_idx}.pth"
         save_model(policy_net, config, n_actions, model_path)
         avg_score, best_score, frames, _ = evaluate_policy(
-            AsteroidsEnv(render_mode="rgb_array"), policy_net,
-            input_shape, device, num_frames,
-            max_steps_per_episode, num_eval_episodes=eval_episodes
+            AsteroidsEnv(
+                render_mode="rgb_array",
+                width=400,
+                height=400,
+                max_steps=max_steps_per_episode,
+                num_asteroids=num_asteroids,
+                max_asteroid_size=max_asteroid_size,
+                max_asteroid_speed=max_asteroid_speed
+            ),
+            policy_net,
+            input_shape,
+            device,
+            num_frames,
+            max_steps_per_episode,
+            num_eval_episodes=eval_episodes
         )
         gif_path = f"gifs/play_{frame_idx}.gif"
         save_gif(sample_frames(frames, n=500), gif_path)
