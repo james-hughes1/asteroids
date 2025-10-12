@@ -8,7 +8,7 @@ import random
 class AsteroidsEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self, render_mode="rgb_array", width=128, height=128, max_steps=1000, num_asteroids=5, max_asteroid_size=90, max_asteroid_speed=0.5):
+    def __init__(self, render_mode="rgb_array", width=128, height=128, max_steps=1000, num_asteroids=5, max_asteroid_size=90, max_asteroid_speed=0.5, frame_skip=1):
         super().__init__()
 
         self.width = width
@@ -17,6 +17,7 @@ class AsteroidsEnv(gym.Env):
         self.num_asteroids = num_asteroids
         self.max_asteroid_size = max_asteroid_size
         self.max_asteroid_speed = max_asteroid_speed
+        self.frame_skip = frame_skip
         self.render_mode = render_mode
 
         # Discrete actions: nothing, rotate left, rotate right, thrust, shoot
@@ -27,11 +28,16 @@ class AsteroidsEnv(gym.Env):
             low=0, high=255, shape=(self.height, self.width, 3), dtype=np.uint8
         )
 
-        # Pygame surface for rendering
-        self.screen = None
-        self.clock = None
-
-        self._init_game()
+        if self.render_mode == "human":
+            pygame.init()
+            self.screen = pygame.display.set_mode((self.width, self.height))
+            self.clock = pygame.time.Clock()
+        else:
+            # Headless mode
+            pygame.display.init()
+            pygame.display.set_mode((1, 1), pygame.HIDDEN)
+            self.screen = None
+            self.clock = None
 
     def _init_game(self):
         # Ship
@@ -114,6 +120,15 @@ class AsteroidsEnv(gym.Env):
         return ship_mask, asteroid_masks
 
     def step(self, action):
+        total_reward = 0
+        for _ in range(self.frame_skip):
+            obs, reward, done, trunc, info = self._step_once(action)
+            total_reward += reward
+            if done:
+                break
+        return obs, total_reward, done, trunc, info
+
+    def _step_once(self, action):
         reward = 0
         if self.done:
             return self._get_obs(), 0.0, True, False, {}

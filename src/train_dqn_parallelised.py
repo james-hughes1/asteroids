@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import imageio
 
 import gymnasium as gym
-from gymnasium.vector import AsyncVectorEnv
+from gymnasium.vector import SyncVectorEnv
 
 from asteroids_env.env import AsteroidsEnv
 from training.dqn_model import DQN
@@ -69,6 +69,7 @@ replay_capacity = config.get("replay_capacity", 2000)
 target_update_interval = config.get("target_update_interval", 10000)
 save_interval = config.get("save_interval", 50000)
 log_interval = config.get("log_interval", 10000)
+frame_skip = config.get("frame_skip", 1)
 
 num_asteroids = config.get("num_asteroids", 5)
 max_asteroid_size = config.get("max_asteroid_size", 90)
@@ -94,7 +95,7 @@ os.makedirs("logs", exist_ok=True)
 current_max_speed = [max_asteroid_speed]  # mutable container for shared reference
 
 def make_env():
-    def _init():
+    def _thunk():
         return AsteroidsEnv(
             render_mode="rgb_array",
             width=400,
@@ -102,10 +103,11 @@ def make_env():
             max_steps=max_steps_per_episode,
             num_asteroids=num_asteroids,
             max_asteroid_size=max_asteroid_size,
-            max_asteroid_speed=current_max_speed[0]
+            max_asteroid_speed=current_max_speed[0],
+            frame_skip=frame_skip
         )
-    return _init
-env = AsyncVectorEnv([make_env() for _ in range(num_envs)])
+    return _thunk
+env = SyncVectorEnv([make_env() for _ in range(num_envs)])
 n_actions = env.single_action_space.n
 
 # --- Build target network ---
@@ -301,7 +303,8 @@ while frame_idx < max_frames:
                 max_steps=max_steps_per_episode,
                 num_asteroids=num_asteroids,
                 max_asteroid_size=max_asteroid_size,
-                max_asteroid_speed=max_asteroid_speed
+                max_asteroid_speed=max_asteroid_speed,
+                frame_skip=1
             ),
             policy_net,
             input_shape,
