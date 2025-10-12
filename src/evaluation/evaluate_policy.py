@@ -3,7 +3,7 @@ import torch
 from collections import deque
 import cv2
 import imageio
-from utils.preprocess import stack_frames
+from utils.preprocess import stack_frames, preprocess_frame
 
 
 def evaluate_policy(
@@ -80,13 +80,13 @@ def evaluate_policy(
     return mean_score, best_score, all_frames[best_idx], all_frames[most_steps_idx]
 
 # --- GIF saving function ---
-def save_gif(frames, filename="gifs/play.gif", scale=4):
+def save_gif(frames, filename="gifs/play.gif", network_size=(84,84), scale=4):
     """Save a gif, scaling up with nearest-neighbor so pixels stay blocky."""
     upscaled = []
     for frame in frames:
-        # frame is HxWx3, resize with NEAREST to keep blocky look
         h, w, _ = frame.shape
-        enlarged = cv2.resize(frame, (w*scale, h*scale), interpolation=cv2.INTER_NEAREST)
+        frame = preprocess_frame(frame, network_size=network_size, rgb=True, return_uint8=True)
+        enlarged = np.repeat(np.repeat(frame, scale, axis=0), scale, axis=1)
         upscaled.append(enlarged)
     imageio.mimsave(filename, upscaled, fps=30)
 

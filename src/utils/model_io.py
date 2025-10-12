@@ -1,6 +1,5 @@
 import os
 import torch
-import yaml
 from training.dqn_model import DQN
 
 def save_model(model, config, n_actions, save_path):
@@ -28,7 +27,7 @@ def save_model(model, config, n_actions, save_path):
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(model_data, save_path)
-    print(f"✅ Model and config saved to {save_path}")
+    print(f"Model and config saved to {save_path}")
 
 
 def load_model(model_path, device="cpu"):
@@ -40,7 +39,7 @@ def load_model(model_path, device="cpu"):
         device (str): 'cpu' or 'cuda'.
 
     Returns:
-        model (torch.nn.Module): Loaded model ready for inference.
+        model (torch.nn.Module): Loaded Noisy DQN model ready for inference.
         config (dict): Configuration dictionary saved with the model.
         n_actions (int): Number of actions in the environment.
     """
@@ -54,6 +53,7 @@ def load_model(model_path, device="cpu"):
     # Recreate model and load weights
     model = DQN(input_shape, n_actions).to(device)
     model.load_state_dict(checkpoint["state_dict"])
+    model.reset_noise()  # important for NoisyLinear layers
     model.eval()
 
     print(f"Loaded model from {model_path}")

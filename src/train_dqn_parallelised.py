@@ -240,14 +240,14 @@ while frame_idx < max_frames:
         print(f"Frame {frame_idx:,}: mean recent episode reward = {avg_recent:.2f}")
 
     if frame_idx % save_interval < num_envs:
-        model_path = f"models/policy_net_{frame_idx//max_steps_per_episode}.pth"
+        model_path = f"models/policy_net_{frame_idx}.pth"
         save_model(policy_net, config, n_actions, model_path)
         avg_score, best_score, frames, _ = evaluate_policy(
             AsteroidsEnv(render_mode="rgb_array"), policy_net,
             input_shape, device, num_frames,
             max_steps_per_episode, num_eval_episodes=eval_episodes
         )
-        gif_path = f"gifs/play_{frame_idx//max_steps_per_episode}.gif"
+        gif_path = f"gifs/play_{frame_idx}.gif"
         save_gif(sample_frames(frames, n=500), gif_path)
         eval_scores.append(avg_score)
         print(f"Saved model + eval (avg={avg_score:.2f}, best={best_score:.2f}) → {gif_path}")
