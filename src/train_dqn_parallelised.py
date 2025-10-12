@@ -138,6 +138,13 @@ logging_q_count = 0
 logging_losses = []
 logging_action_counts = np.zeros(n_actions)
 
+# --- Episode tracking ---
+completed_lengths = []  # lengths of completed episodes
+episode_steps = np.zeros(num_envs, dtype=np.int32)
+
+# --- JSON logging ---
+log_history = []
+
 # --- Main training loop (frame-based) ---
 print(f"Starting training for {max_frames:,} total frames across {num_envs} envs")
 
@@ -162,6 +169,16 @@ while frame_idx < max_frames:
             stacked_frames[i], next_obs[i], False, num_frames, (input_shape[1], input_shape[2])
         )
         replay_buffer.push(states[i], actions[i], rewards[i], ns, dones[i])
+        # --- Update per-episode stats ---
+        env_returns += rewards
+        episode_steps += 1
+        for i, done in enumerate(dones):
+            if done:
+                completed_returns.append(env_returns[i])
+                completed_lengths.append(episode_steps[i])
+                env_returns[i] = 0.0
+                episode_steps[i] = 0
+
         next_states.append(ns)  # append to list
 
     # --- Reset done environments ---
@@ -213,17 +230,44 @@ while frame_idx < max_frames:
 
     # --- Log metrics ---
     if frame_idx % log_interval < num_envs and logging_q_count > 0:
+        # --- Metrics ---
         action_probs = logging_action_counts / np.sum(logging_action_counts + 1e-10)
         action_entropy = -np.sum(action_probs * np.log(action_probs + 1e-10))
 
-        mean_td = np.mean(logging_tds) if logging_tds else 0
-        std_td = np.std(logging_tds) if logging_tds else 0
-        mean_q = logging_sorted_q / logging_q_count if logging_q_count > 0 else 0
-        mean_loss = np.mean(logging_losses) if logging_losses else 0
+        mean_td = float(np.mean(logging_tds)) if logging_tds else 0.0
+        std_td = float(np.std(logging_tds)) if logging_tds else 0.0
+        mean_q = float(logging_sorted_q / logging_q_count) if logging_q_count > 0 else 0.0
+        mean_loss = float(np.mean(logging_losses)) if logging_losses else 0.0
 
-        print(f"Frame {frame_idx:,}: mean loss={mean_loss:.4f}, mean Q={mean_q}, "
-              f"TD={mean_td:.3f}±{std_td:.3f}, action entropy={action_entropy:.3f}")
+        # Episode stats over last 100 episodes or fewer
+        recent_rewards = completed_returns[-100:]
+        recent_lengths = completed_lengths[-100:]
+        avg_recent_reward = float(np.mean(recent_rewards)) if recent_rewards else 0.0
+        avg_recent_length = float(np.mean(recent_lengths)) if recent_lengths else 0.0
 
+        # --- Print nicely ---
+        print(f"Frame {frame_idx:,} | Loss={mean_loss:.4f} | Q={mean_q:.2f} | "
+            f"TD={mean_td:.3f}±{std_td:.3f} | Entropy={action_entropy:.3f} | "
+            f"Recent reward={avg_recent_reward:.2f} | Avg ep length={avg_recent_length:.1f}")
+
+        # --- JSON row ---
+        log_row = {
+            "frame": frame_idx,
+            "mean_loss": mean_loss,
+            "mean_q": mean_q,
+            "td_mean": mean_td,
+            "td_std": std_td,
+            "action_entropy": action_entropy,
+            "avg_recent_reward": avg_recent_reward,
+            "avg_recent_length": avg_recent_length,
+            "completed_episodes": len(completed_returns)
+        }
+        log_history.append(log_row)
+        # Dump incremental JSON
+        with open("logs/training_results.json", "w") as f:
+            json.dump(log_history, f, indent=2)
+
+        # --- Reset logging ---
         logging_tds = []
         logging_sorted_q[:] = 0
         logging_q_count = 0
