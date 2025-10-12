@@ -254,10 +254,6 @@ while frame_idx < max_frames:
             f"TD={mean_td:.3f}±{std_td:.3f} | Entropy={action_entropy:.3f} | "
             f"Recent reward={avg_recent_reward:.2f} | Avg ep length={avg_recent_length:.1f}")
         print(f"Curriculum: Current max asteroid speed={current_max_speed[0]:.2f}")
-        # --- Update curriculum ---
-        if max_asteroid_speed_end > max_asteroid_speed_start:
-            progress = min(1.0, frame_idx / max_frames)
-            current_max_speed[0] = max_asteroid_speed_start + progress * (max_asteroid_speed_end - max_asteroid_speed_start)
 
         # --- JSON row ---
         log_row = {
@@ -269,7 +265,7 @@ while frame_idx < max_frames:
             "action_entropy": action_entropy,
             "avg_recent_reward": avg_recent_reward,
             "avg_recent_length": avg_recent_length,
-            "curriculum_max_asteroid_speed": max_asteroid_speed,
+            "curriculum_max_asteroid_speed": current_max_speed[0],
             "completed_episodes": len(completed_returns)
         }
         log_history.append(log_row)
@@ -288,6 +284,13 @@ while frame_idx < max_frames:
     if frame_idx % target_update_interval < num_envs:
         target_net.load_state_dict(policy_net.state_dict())
 
+    # --- Update curriculum ---
+    if max_asteroid_speed_end > max_asteroid_speed_start:
+        progress = min(1.0, frame_idx / max_frames)
+        current_max_speed[0] = max_asteroid_speed_start + progress * (max_asteroid_speed_end - max_asteroid_speed_start)
+        env.call("set_difficulty", max_asteroid_speed=current_max_speed[0])
+
+    # --- Save model and run evaluation ---
     if frame_idx % save_interval < num_envs:
         model_path = f"models/policy_net_{frame_idx}.pth"
         save_model(policy_net, config, n_actions, model_path)

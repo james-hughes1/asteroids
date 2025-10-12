@@ -65,13 +65,15 @@ class AsteroidsEnv(gym.Env):
         self.steps = 0
         self.done = False
 
-    def reset(self, seed=None, max_asteroid_speed=None, options=None):
+    def set_difficulty(self, max_asteroid_speed=None):
+        if max_asteroid_speed is not None:
+            self.max_asteroid_speed = max_asteroid_speed
+
+    def reset(self, seed=None, options=None):
         super().reset(seed=seed)  # ensures Gym handles seeding
         if seed is not None:
             random.seed(seed)
             np.random.seed(seed)
-        if max_asteroid_speed is not None:
-            self.max_asteroid_speed = max_asteroid_speed
         self._init_game()
         return self._get_obs(), {}
     
