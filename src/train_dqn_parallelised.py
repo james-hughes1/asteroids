@@ -91,6 +91,8 @@ os.makedirs("gifs", exist_ok=True)
 os.makedirs("logs", exist_ok=True)
 
 # --- Environment ---
+current_max_speed = [max_asteroid_speed]  # mutable container for shared reference
+
 def make_env():
     def _init():
         return AsteroidsEnv(
@@ -100,7 +102,7 @@ def make_env():
             max_steps=max_steps_per_episode,
             num_asteroids=num_asteroids,
             max_asteroid_size=max_asteroid_size,
-            max_asteroid_speed=max_asteroid_speed
+            max_asteroid_speed=current_max_speed[0]
         )
     return _init
 env = AsyncVectorEnv([make_env() for _ in range(num_envs)])
@@ -185,7 +187,7 @@ while frame_idx < max_frames:
 
     # --- Reset done environments ---
     if dones.any():
-        reset_obs, _ = env.reset(max_asteroid_speed=max_asteroid_speed)
+        reset_obs, _ = env.reset()
         for i, done in enumerate(dones):
             if done:
                 ns, stacked_frames[i] = stack_frames(
@@ -251,11 +253,11 @@ while frame_idx < max_frames:
         print(f"Frame {frame_idx:,} | Loss={mean_loss:.4f} | Q means sorted={mean_q} | "
             f"TD={mean_td:.3f}±{std_td:.3f} | Entropy={action_entropy:.3f} | "
             f"Recent reward={avg_recent_reward:.2f} | Avg ep length={avg_recent_length:.1f}")
-        print(f"Curriculum: Current max asteroid speed={max_asteroid_speed:.2f}")
+        print(f"Curriculum: Current max asteroid speed={current_max_speed[0]:.2f}")
         # --- Update curriculum ---
         if max_asteroid_speed_end > max_asteroid_speed_start:
             progress = min(1.0, frame_idx / max_frames)
-            max_asteroid_speed = max_asteroid_speed_start + progress * (max_asteroid_speed_end - max_asteroid_speed_start)
+            current_max_speed[0] = max_asteroid_speed_start + progress * (max_asteroid_speed_end - max_asteroid_speed_start)
 
         # --- JSON row ---
         log_row = {
