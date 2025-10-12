@@ -221,7 +221,7 @@ while frame_idx < max_frames:
         mean_q = logging_sorted_q / logging_q_count if logging_q_count > 0 else 0
         mean_loss = np.mean(logging_losses) if logging_losses else 0
 
-        print(f"Frame {frame_idx:,}: mean loss={mean_loss:.4f}, mean Q={mean_q:.2f}, "
+        print(f"Frame {frame_idx:,}: mean loss={mean_loss:.4f}, mean Q={mean_q}, "
               f"TD={mean_td:.3f}±{std_td:.3f}, action entropy={action_entropy:.3f}")
 
         logging_tds = []
