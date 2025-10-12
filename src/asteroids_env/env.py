@@ -34,8 +34,6 @@ class AsteroidsEnv(gym.Env):
             self.clock = pygame.time.Clock()
         else:
             # Headless mode
-            pygame.display.init()
-            pygame.display.set_mode((1, 1), pygame.HIDDEN)
             self.screen = None
             self.clock = None
 
@@ -120,15 +118,6 @@ class AsteroidsEnv(gym.Env):
         return ship_mask, asteroid_masks
 
     def step(self, action):
-        total_reward = 0
-        for _ in range(self.frame_skip):
-            obs, reward, done, trunc, info = self._step_once(action)
-            total_reward += reward
-            if done:
-                break
-        return obs, total_reward, done, trunc, info
-
-    def _step_once(self, action):
         reward = 0
         if self.done:
             return self._get_obs(), 0.0, True, False, {}

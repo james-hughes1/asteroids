@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import imageio
 
 import gymnasium as gym
-from gymnasium.vector import SyncVectorEnv
+from gymnasium.vector import AsyncVectorEnv
 
 from asteroids_env.env import AsteroidsEnv
 from training.dqn_model import DQN
@@ -95,7 +95,7 @@ os.makedirs("logs", exist_ok=True)
 current_max_speed = [max_asteroid_speed]  # mutable container for shared reference
 
 def make_env():
-    def _thunk():
+    def _init():
         return AsteroidsEnv(
             render_mode="rgb_array",
             width=400,
@@ -106,8 +106,8 @@ def make_env():
             max_asteroid_speed=current_max_speed[0],
             frame_skip=frame_skip
         )
-    return _thunk
-env = SyncVectorEnv([make_env() for _ in range(num_envs)])
+    return _init
+env = AsyncVectorEnv([make_env() for _ in range(num_envs)])
 n_actions = env.single_action_space.n
 
 # --- Build target network ---
@@ -164,40 +164,45 @@ while frame_idx < max_frames:
 
     logging_action_counts[actions] += 1
 
-    # --- Step all environments in parallel ---
-    next_obs, rewards, dones, truncs, infos = env.step(actions)
+    # --- Step all environments in parallel, with skips ---
+    total_rewards = np.zeros(num_envs)
+    dones_any = np.zeros(num_envs, dtype=bool)
+    next_obs = states.copy()  # placeholder for last obs after skipping frames
 
-    # --- Preprocess next states ---
-    next_states = []  # keep as list
+    for skip in range(frame_skip):
+        # --- Step all environments in parallel ---
+        obs_step, rewards_step, dones_step, truncs_step, infos_step = env.step(actions)
+        total_rewards += rewards_step
+        dones_any |= dones_step
+        next_obs = obs_step  # overwrite with last observation
+
+        # --- Reset done environments mid-skip ---
+        if dones_step.any():
+            reset_obs, _ = env.reset()
+            for i, done in enumerate(dones_step):
+                if done:
+                    next_obs[i] = reset_obs[i]
+
+    # --- Preprocess next states and push to replay buffer ---
+    next_states = []
     for i in range(num_envs):
         ns, stacked_frames[i] = stack_frames(
-            stacked_frames[i], next_obs[i], False, num_frames, (input_shape[1], input_shape[2])
+            stacked_frames[i], next_obs[i], dones_any[i], num_frames, (input_shape[1], input_shape[2])
         )
-        replay_buffer.push(states[i], actions[i], rewards[i], ns, dones[i])
+        replay_buffer.push(states[i], actions[i], total_rewards[i], ns, dones_any[i])
         # --- Update per-episode stats ---
-        env_returns += rewards
-        episode_steps += 1
-        for i, done in enumerate(dones):
-            if done:
-                completed_returns.append(env_returns[i])
-                completed_lengths.append(episode_steps[i])
-                env_returns[i] = 0.0
-                episode_steps[i] = 0
+        env_returns[i] += total_rewards[i]
+        episode_steps[i] += frame_skip
+        if dones_any[i]:
+            completed_returns.append(env_returns[i])
+            completed_lengths.append(episode_steps[i])
+            env_returns[i] = 0.0
+            episode_steps[i] = 0
 
-        next_states.append(ns)  # append to list
-
-    # --- Reset done environments ---
-    if dones.any():
-        reset_obs, _ = env.reset()
-        for i, done in enumerate(dones):
-            if done:
-                ns, stacked_frames[i] = stack_frames(
-                    stacked_frames[i], reset_obs[i], True, num_frames, (input_shape[1], input_shape[2])
-                )
-                next_states[i] = ns  # replace only the done ones
+        next_states.append(ns)
 
     states = np.stack(next_states)  # convert to array at the end
-    frame_idx += num_envs # we advanced num_envs frames at once
+    frame_idx += (frame_skip * num_envs)  # we advanced frame_skip * num_envs frames at once
 
     # --- Train the DQN ---
     if len(replay_buffer.buffer) > batch_size:
