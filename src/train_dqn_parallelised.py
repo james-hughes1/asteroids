@@ -239,7 +239,7 @@ while frame_idx < max_frames:
         target_net.reset_noise()
 
     # --- Log metrics ---
-    if frame_idx % log_interval < num_envs and logging_q_count > 0:
+    if frame_idx % log_interval < (num_envs * frame_skip) and logging_q_count > 0:
         # --- Metrics ---
         action_probs = logging_action_counts / np.sum(logging_action_counts + 1e-10)
         action_entropy = -np.sum(action_probs * np.log(action_probs + 1e-10))
@@ -287,7 +287,7 @@ while frame_idx < max_frames:
         logging_action_counts = np.zeros(n_actions)
 
     # --- Update target network ---
-    if frame_idx % target_update_interval < num_envs:
+    if frame_idx % target_update_interval < (num_envs * frame_skip):
         target_net.load_state_dict(policy_net.state_dict())
 
     # --- Update curriculum ---
@@ -297,7 +297,7 @@ while frame_idx < max_frames:
         env.call("set_difficulty", max_asteroid_speed=current_max_speed[0])
 
     # --- Save model and run evaluation ---
-    if frame_idx % save_interval < num_envs:
+    if frame_idx % save_interval < (num_envs * frame_skip):
         model_path = f"models/policy_net_{frame_idx}.pth"
         save_model(policy_net, config, n_actions, model_path)
         avg_score, best_score, frames, _ = evaluate_policy(
