@@ -5,7 +5,7 @@ channels_per_frame: 3
 input_shape_2d: [128, 128]
 n_actions: 5
 
-max_frames: 100000000
+max_frames: 20000000
 max_steps_per_episode: 4000
 num_asteroids: 4
 max_asteroid_size: 90

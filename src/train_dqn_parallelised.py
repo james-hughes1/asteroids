@@ -155,8 +155,7 @@ print(f"Starting training for {max_frames:,} total frames across {num_envs} envs
 while frame_idx < max_frames:
     # --- Choose actions for all envs ---
     state_tensor = torch.tensor(states, dtype=torch.float32).to(device)
-    batch_size = state_tensor.shape[0]
-    state_tensor = state_tensor.reshape(batch_size, -1, state_tensor.shape[-2], state_tensor.shape[-1])
+    state_tensor = state_tensor.reshape(num_envs, -1, state_tensor.shape[-2], state_tensor.shape[-1])
     with torch.no_grad():
         q_values = policy_net(state_tensor)
         actions = q_values.argmax(dim=1).cpu().numpy()
@@ -211,6 +210,7 @@ while frame_idx < max_frames:
         d = torch.tensor(d, dtype=torch.float32).unsqueeze(1).to(device)
         weights = torch.tensor(weights, dtype=torch.float32).unsqueeze(1).to(device)
 
+        q_all = policy_net(s).detach().cpu().numpy()
         q_values = policy_net(s).gather(1, a)
         next_actions = policy_net(ns).argmax(1, keepdim=True)
         next_q = target_net(ns).gather(1, next_actions).detach()
@@ -219,8 +219,9 @@ while frame_idx < max_frames:
         loss = (weights * F.smooth_l1_loss(q_values, target, reduction="none")).mean()
 
         logging_tds.extend(np.abs(td_errors).tolist())
-        all_qs = q_values.detach().cpu().numpy()
-        sorted_qs = np.sort(all_qs, axis=1)[:, ::-1]  # shape: (batch_size, n_actions), largest first
+        if frame_idx == 144:
+            print(q_all)
+        sorted_qs = np.sort(q_all, axis=1)[:, ::-1]  # shape: (batch_size, n_actions), largest first
         logging_sorted_q += sorted_qs.sum(axis=0)
         logging_q_count += sorted_qs.shape[0]
         logging_losses.append(loss.item())
