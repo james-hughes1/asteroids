@@ -72,7 +72,9 @@ log_interval = config.get("log_interval", 10000)
 
 num_asteroids = config.get("num_asteroids", 5)
 max_asteroid_size = config.get("max_asteroid_size", 90)
-max_asteroid_speed = config.get("max_asteroid_speed", 0.5)
+max_asteroid_speed_start = config.get("max_asteroid_speed_start", 0.5)
+max_asteroid_speed_end = config.get("max_asteroid_speed_end", 2.5)
+max_asteroid_speed = max_asteroid_speed_start
 
 alpha = config.get("alpha", 0.6)
 beta_start = config.get("beta_start", 0.4)
@@ -183,7 +185,7 @@ while frame_idx < max_frames:
 
     # --- Reset done environments ---
     if dones.any():
-        reset_obs, _ = env.reset()
+        reset_obs, _ = env.reset(max_asteroid_speed=max_asteroid_speed)
         for i, done in enumerate(dones):
             if done:
                 ns, stacked_frames[i] = stack_frames(
@@ -249,6 +251,11 @@ while frame_idx < max_frames:
         print(f"Frame {frame_idx:,} | Loss={mean_loss:.4f} | Q means sorted={mean_q} | "
             f"TD={mean_td:.3f}±{std_td:.3f} | Entropy={action_entropy:.3f} | "
             f"Recent reward={avg_recent_reward:.2f} | Avg ep length={avg_recent_length:.1f}")
+        print(f"Curriculum: Current max asteroid speed={max_asteroid_speed:.2f}")
+        # --- Update curriculum ---
+        if max_asteroid_speed_end > max_asteroid_speed_start:
+            progress = min(1.0, frame_idx / max_frames)
+            max_asteroid_speed = max_asteroid_speed_start + progress * (max_asteroid_speed_end - max_asteroid_speed_start)
 
         # --- JSON row ---
         log_row = {
@@ -260,6 +267,7 @@ while frame_idx < max_frames:
             "action_entropy": action_entropy,
             "avg_recent_reward": avg_recent_reward,
             "avg_recent_length": avg_recent_length,
+            "curriculum_max_asteroid_speed": max_asteroid_speed,
             "completed_episodes": len(completed_returns)
         }
         log_history.append(log_row)

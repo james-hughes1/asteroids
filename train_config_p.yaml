@@ -9,7 +9,8 @@ max_frames: 100000000
 max_steps_per_episode: 4000
 num_asteroids: 4
 max_asteroid_size: 90
-max_asteroid_speed: 2.0
+max_asteroid_speed_start: 1.0
+max_asteroid_speed_end: 2.5
 
 gamma: 0.99
 
@@ -22,9 +23,9 @@ batch_size: 64
 learning_rate: 0.0001
 
 replay_capacity: 20000
-target_update_interval: 50000
+target_update_interval: 10000
 save_interval: 100000
-log_interval: 20000
+log_interval: 10000
 
 alpha: 0.6
 beta_start: 0.4
