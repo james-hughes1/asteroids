@@ -28,8 +28,6 @@ from utils.model_io import save_model, load_model
 
 import shutil
 import datetime
-from google.colab import drive
-drive.mount('/content/drive')
 
 # Create a unique timestamped folder
 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
