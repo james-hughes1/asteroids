@@ -301,11 +301,6 @@ while frame_idx < max_frames:
         with open("logs/training_results.json", "w") as f:
             json.dump(log_history, f, indent=2)
 
-        # Backup to Drive
-        drive_log_path = os.path.join(run_dir, "training_results.json")
-        shutil.copy("logs/training_results.json", drive_log_path)
-        print(f"Checkpoint saved to Google Drive: {drive_log_path}")
-
         # --- Reset logging ---
         logging_tds = []
         logging_sorted_q[:] = 0
@@ -332,6 +327,11 @@ while frame_idx < max_frames:
         drive_checkpoint_path = os.path.join(run_dir, f"policy_net_{frame_idx}.pth")
         shutil.copy(model_path, drive_checkpoint_path)
         print(f"Checkpoint saved to Google Drive: {drive_checkpoint_path}")
+
+        # Backup to Drive
+        drive_log_path = os.path.join(run_dir, "training_results.json")
+        shutil.copy("logs/training_results.json", drive_log_path)
+        print(f"Results saved to Google Drive: {drive_log_path}")
 
         avg_score, best_score, frames, _ = evaluate_policy(
             AsteroidsEnv(
