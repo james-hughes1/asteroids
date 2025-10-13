@@ -57,7 +57,7 @@ class NoisyLinear(nn.Module):
         return F.linear(x, weight, bias)
 
 
-class DQN(nn.Module):
+class NoisyDQN(nn.Module):
     def __init__(self, input_shape, n_actions):
         super().__init__()
         c, h, w = input_shape
@@ -89,3 +89,31 @@ class DQN(nn.Module):
         """Resample noise for all noisy layers each step."""
         self.fc1.reset_noise()
         self.fc2.reset_noise()
+
+class DQN(nn.Module):
+    def __init__(self, input_shape, n_actions):
+        super().__init__()
+        c, h, w = input_shape
+        self.conv = nn.Sequential(
+            nn.Conv2d(c, 32, 8, stride=4, padding_mode="circular"),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 4, stride=2, padding_mode="circular"),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, stride=1, padding_mode="circular"),
+            nn.ReLU()
+        )
+
+        conv_out_size = self._get_conv_out(input_shape)
+
+        self.fc1 = nn.Linear(conv_out_size, 512)
+        self.fc2 = nn.Linear(512, n_actions)
+
+    def _get_conv_out(self, shape):
+        o = self.conv(torch.zeros(1, *shape))
+        return int(np.prod(o.size()))
+
+    def forward(self, x):
+        conv_out = self.conv(x)
+        conv_out = conv_out.view(conv_out.size(0), -1)
+        x = F.relu(self.fc1(conv_out))
+        return self.fc2(x)

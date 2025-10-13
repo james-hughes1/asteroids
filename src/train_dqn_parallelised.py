@@ -65,11 +65,15 @@ gamma = config.get("gamma", 0.99)
 batch_size = config.get("batch_size", 32)
 learning_rate = config.get("learning_rate", 0.0005)
 
-replay_capacity = config.get("replay_capacity", 2000)
-target_update_interval = config.get("target_update_interval", 10000)
-save_interval = config.get("save_interval", 50000)
-log_interval = config.get("log_interval", 10000)
+replay_capacity = config.get("replay_capacity", 2_000)
+target_update_interval = config.get("target_update_interval", 10_000)
+save_interval = config.get("save_interval", 50_000)
+log_interval = config.get("log_interval", 10_000)
 frame_skip = config.get("frame_skip", 1)
+
+epsilon_start = config.get("epsilon_start", 1.0)
+epsilon_final = config.get("epsilon_final", 0.05)
+epsilon_decay = config.get("epsilon_decay", 1_000_000)
 
 num_asteroids = config.get("num_asteroids", 5)
 max_asteroid_size = config.get("max_asteroid_size", 90)
@@ -158,9 +162,17 @@ while frame_idx < max_frames:
     # --- Choose actions for all envs ---
     state_tensor = torch.tensor(states, dtype=torch.float32).to(device)
     state_tensor = state_tensor.reshape(num_envs, -1, state_tensor.shape[-2], state_tensor.shape[-1])
+
+    # --- Epsilon-greedy action selection ---
+    epsilon = epsilon_final + (epsilon_start - epsilon_final) * np.exp(-1.0 * frame_idx / epsilon_decay)
+
     with torch.no_grad():
         q_values = policy_net(state_tensor)
-        actions = q_values.argmax(dim=1).cpu().numpy()
+        greedy_actions = q_values.argmax(dim=1).cpu().numpy()
+
+    random_actions = np.random.randint(0, n_actions, size=num_envs)
+    should_explore = np.random.rand(num_envs) < epsilon
+    actions = np.where(should_explore, random_actions, greedy_actions)
 
     logging_action_counts[actions] += 1
 
@@ -235,8 +247,6 @@ while frame_idx < max_frames:
         loss.backward()
         optimizer.step()
         replay_buffer.update_priorities(indices, np.abs(td_errors) + 1e-6)
-        policy_net.reset_noise()
-        target_net.reset_noise()
 
     # --- Log metrics ---
     if frame_idx % log_interval < (num_envs * frame_skip) and logging_q_count > 0:
@@ -272,7 +282,8 @@ while frame_idx < max_frames:
             "avg_recent_reward": avg_recent_reward,
             "avg_recent_length": avg_recent_length,
             "curriculum_max_asteroid_speed": current_max_speed[0],
-            "completed_episodes": len(completed_returns)
+            "completed_episodes": len(completed_returns),
+            "epsilon": epsilon,
         }
         log_history.append(log_row)
         # Dump incremental JSON
@@ -308,7 +319,7 @@ while frame_idx < max_frames:
                 max_steps=max_steps_per_episode,
                 num_asteroids=num_asteroids,
                 max_asteroid_size=max_asteroid_size,
-                max_asteroid_speed=max_asteroid_speed,
+                max_asteroid_speed=current_max_speed[0],
                 frame_skip=1
             ),
             policy_net,
@@ -330,7 +341,7 @@ results = {
     "eval_scores": eval_scores,
     "config": config,
 }
-with open("logs/training_results.json", "w") as f:
+with open("logs/training_summary.json", "w") as f:
     json.dump(results, f, indent=2)
 
 plt.figure()
