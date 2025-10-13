@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("model_path", help="Path to saved DQN model (.pth)")
 parser.add_argument("--episodes", type=int, default=10, help="Number of evaluation episodes")
 parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+parser.add_argument("--max_speed", type=int, default=42, help="Specifies difficulty level via max asteroid speed")
 args = parser.parse_args()
 
 device = torch.device(args.device)
@@ -19,7 +20,7 @@ device = torch.device(args.device)
 max_steps = 10000
 
 # # --- Load model ---
-env = AsteroidsEnv(render_mode="rgb_array", width=400, height=400, max_steps=max_steps, num_asteroids=4, max_asteroid_size=90, max_asteroid_speed=2.5)
+env = AsteroidsEnv(render_mode="rgb_array", width=400, height=400, max_steps=max_steps, num_asteroids=4, max_asteroid_size=90, max_asteroid_speed=args.max_speed)
 model, config, n_actions = load_model(args.model_path, device)
 num_frames = config.get("num_frames", 5)
 channels_per_frame = config.get("channels_per_frame", 3)
