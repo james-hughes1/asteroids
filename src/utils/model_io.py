@@ -53,7 +53,7 @@ def load_model(model_path, device="cpu"):
     # Recreate model and load weights
     model = DQN(input_shape, n_actions).to(device)
     model.load_state_dict(checkpoint["state_dict"])
-    model.reset_noise()  # important for NoisyLinear layers
+    #model.reset_noise()  # important for NoisyLinear layers
     model.eval()
 
     print(f"Loaded model from {model_path}")

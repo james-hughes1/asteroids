@@ -341,8 +341,17 @@ results = {
     "eval_scores": eval_scores,
     "config": config,
 }
+
+def json_compatible(obj):
+    if isinstance(obj, np.generic):  # np.float32, np.int64, etc.
+        return obj.item()
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
+
 with open("logs/training_summary.json", "w") as f:
-    json.dump(results, f, indent=2)
+    json.dump(results, f, indent=2, default=json_compatible)
 
 plt.figure()
 plt.plot(completed_returns, label="Episode rewards")
