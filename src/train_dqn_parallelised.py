@@ -174,7 +174,7 @@ while frame_idx < max_frames:
     should_explore = np.random.rand(num_envs) < epsilon
     actions = np.where(should_explore, random_actions, greedy_actions)
 
-    logging_action_counts[actions] += 1
+    logging_action_counts[greedy_actions] += 1
 
     # --- Step all environments in parallel, with skips ---
     total_rewards = np.zeros(num_envs)
