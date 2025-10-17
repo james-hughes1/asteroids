@@ -34,12 +34,15 @@ def evaluate_policy(
     Returns:
         mean_score: float
         best_score: float
+        worst_score: float
         best_frames: list of RGB frames (best-performing episode)
-        most_steps_frames: list of RGB frames (episode with most steps)
+        worst_frames: list of RGB frames (worst-performing episode)
+        complete_rate: float (fraction of episodes where all asteroids were destroyed)
     """
     scores = []
     all_frames = []
     step_counts = []
+    complete_rate = 0.0
 
     for ep in range(num_eval_episodes):
         stacked_frames = deque(maxlen=num_frames)
@@ -68,16 +71,22 @@ def evaluate_policy(
             steps += 1
             frames.append(obs)
 
+        if len(env.asteroids) == 0:
+            complete_rate += 1.0
+
         scores.append(total_reward)
         all_frames.append(frames)
         step_counts.append(steps)
 
-    best_idx = int(np.argmax(scores))
-    mean_score = np.mean(scores)
-    best_score = scores[best_idx]
-    most_steps_idx = int(np.argmax(step_counts))
+    complete_rate /= num_eval_episodes
 
-    return mean_score, best_score, all_frames[best_idx], all_frames[most_steps_idx]
+    mean_score = np.mean(scores)
+    best_idx = int(np.argmax(scores))
+    best_score = scores[best_idx]
+    worst_idx = int(np.argmin(scores))
+    worst_score = scores[worst_idx]
+
+    return mean_score, best_score, worst_score, all_frames[best_idx], all_frames[worst_idx], complete_rate
 
 # --- GIF saving function ---
 def save_gif(frames, filename="gifs/play.gif", network_size=(84,84), scale=4):

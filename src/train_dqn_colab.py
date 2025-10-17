@@ -139,6 +139,7 @@ replay_buffer = PrioritizedReplayBuffer(replay_capacity, alpha)
 frame_idx = 0
 episode_rewards = []
 eval_scores = []
+complete_rates = []
 
 # --- Per-env trackers ---
 obs, _ = env.reset()
@@ -333,7 +334,7 @@ while frame_idx < max_frames:
         shutil.copy("logs/training_results.json", drive_log_path)
         print(f"Results saved to Google Drive: {drive_log_path}")
 
-        avg_score, best_score, frames, _ = evaluate_policy(
+        avg_score, best_score, worst_score, frames, _, complete_rate = evaluate_policy(
             AsteroidsEnv(
                 render_mode="rgb_array",
                 width=400,
@@ -354,13 +355,15 @@ while frame_idx < max_frames:
         gif_path = f"gifs/play_{frame_idx}.gif"
         save_gif(sample_frames(frames, n=500), gif_path)
         eval_scores.append(avg_score)
-        print(f"Saved model + eval (avg={avg_score:.2f}, best={best_score:.2f}) → {gif_path}")
+        complete_rates.append(complete_rate)
+        print(f"Saved model + eval (avg={avg_score:.2f}, best={best_score:.2f}) → {gif_path}, worst={worst_score:.2f}, complete rate={complete_rate*100:.2f}%")
 
 # --- Wrap-up ---
 env.close()
 results = {
     "completed_returns": completed_returns,
     "eval_scores": eval_scores,
+    "complete_rates": complete_rates,
     "config": config,
 }
 
