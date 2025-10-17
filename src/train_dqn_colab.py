@@ -68,7 +68,7 @@ else:
     n_actions = config.get("n_actions", 5)
     policy_net = DQN(input_shape, n_actions).to(device)
 
-max_frames = config.get("max_frames", 1000000)
+max_frames = config.get("max_frames", 40_000_000)
 max_steps_per_episode = config.get("max_steps_per_episode", 1000)
 
 gamma = config.get("gamma", 0.99)
@@ -81,6 +81,7 @@ target_update_interval = config.get("target_update_interval", 10_000)
 save_interval = config.get("save_interval", 50_000)
 log_interval = config.get("log_interval", 10_000)
 frame_skip = config.get("frame_skip", 1)
+frame_skip_deactivate = config.get("frame_skip_deactivate", 20_000_000)
 
 epsilon_start = config.get("epsilon_start", 1.0)
 epsilon_final = config.get("epsilon_final", 0.05)
@@ -178,6 +179,10 @@ while frame_idx < max_frames:
 
     # --- Epsilon-greedy action selection ---
     epsilon = epsilon_final + (epsilon_start - epsilon_final) * np.exp(-1.0 * frame_idx / epsilon_decay)
+
+    # --- Deactivate frame skipping after certain frames ---
+    if frame_idx >= frame_skip_deactivate:
+        frame_skip = 1
 
     with torch.no_grad():
         q_values = policy_net(state_tensor)
