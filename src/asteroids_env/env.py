@@ -60,7 +60,7 @@ class AsteroidsEnv(gym.Env):
         self.asteroids = []
         for _ in range(self.num_asteroids):
             x, y = random.randint(0, self.width), random.randint(0, self.height)
-            while abs(x - self.ship_x) < 100 and abs(y - self.ship_y) < 100:
+            while abs(x - self.ship_x) < 120 and abs(y - self.ship_y) < 120:
                 x, y = random.randint(0, self.width), random.randint(0, self.height)
             dx, dy = random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed), random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed)
             size = random.randint(30, self.max_asteroid_size)
@@ -122,21 +122,29 @@ class AsteroidsEnv(gym.Env):
         if self.done:
             return self._get_obs(), 0.0, True, False, {}
 
-        # --- Apply action ---
+                # --- Apply action ---
         rotation_speed = 8
-        acceleration = 0
-        bullet_speed = 5
+        bullet_speed = 7
+        thrust_accel = 0.3
+        friction = 0.98
+
+        # Initialize ship velocity if not already present (for reset compatibility)
+        if not hasattr(self, "ship_dx"):
+            self.ship_dx = 0.0
+            self.ship_dy = 0.0
 
         if action == 1:  # rotate left
             self.ship_angle += rotation_speed
         elif action == 2:  # rotate right
             self.ship_angle -= rotation_speed
         elif action == 3:  # thrust
-            acceleration = 0.2
+            rad = math.radians(self.ship_angle)
+            self.ship_dx += -math.sin(rad) * thrust_accel
+            self.ship_dy += -math.cos(rad) * thrust_accel
         elif action == 4:  # shoot
             if self.bullet_cooldown == 0:
                 if len(self.bullets) < 5:
-                    self.bullet_cooldown = 10  # frames until next shot
+                    self.bullet_cooldown = 8
                     rad = math.radians(self.ship_angle)
                     bx = self.ship_x + -math.sin(rad) * self.ship_height / 2
                     by = self.ship_y + -math.cos(rad) * self.ship_height / 2
@@ -146,14 +154,21 @@ class AsteroidsEnv(gym.Env):
             else:
                 self.bullet_cooldown -= 1
 
-        # friction
-        self.ship_speed *= 0.98
-        rad = math.radians(self.ship_angle)
-        self.ship_speed = min(self.ship_speed + acceleration, self.ship_max_speed)
-        self.ship_x += -math.sin(rad) * self.ship_speed
-        self.ship_y += -math.cos(rad) * self.ship_speed
+        # --- Apply friction and velocity limit ---
+        self.ship_dx *= friction
+        self.ship_dy *= friction
 
-        # wrap-around
+        speed = math.hypot(self.ship_dx, self.ship_dy)
+        if speed > self.ship_max_speed:
+            scale = self.ship_max_speed / speed
+            self.ship_dx *= scale
+            self.ship_dy *= scale
+
+        # --- Update position using velocity ---
+        self.ship_x += self.ship_dx
+        self.ship_y += self.ship_dy
+
+        # Wrap-around screen edges
         self.ship_x %= self.width
         self.ship_y %= self.height
 
