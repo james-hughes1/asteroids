@@ -91,6 +91,7 @@ max_asteroid_size = config.get("max_asteroid_size", 90)
 max_asteroid_speed_start = config.get("max_asteroid_speed_start", 0.5)
 max_asteroid_speed_end = config.get("max_asteroid_speed_end", 2.5)
 max_asteroid_speed = max_asteroid_speed_start
+max_asteroid_speed_ramp = config.get("max_asteroid_speed_ramp", 1_000_000)
 
 alpha = config.get("alpha", 0.6)
 beta_start = config.get("beta_start", 0.4)
@@ -315,7 +316,7 @@ while frame_idx < max_frames:
 
     # --- Update curriculum ---
     if max_asteroid_speed_end > max_asteroid_speed_start:
-        progress = min(1.0, frame_idx / max_frames)
+        progress = min(1.0, frame_idx / max_asteroid_speed_ramp)
         current_max_speed[0] = max_asteroid_speed_start + progress * (max_asteroid_speed_end - max_asteroid_speed_start)
         env.call("set_difficulty", max_asteroid_speed=current_max_speed[0])
 
