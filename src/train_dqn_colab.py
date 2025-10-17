@@ -183,6 +183,7 @@ while frame_idx < max_frames:
     # --- Deactivate frame skipping after certain frames ---
     if frame_idx >= frame_skip_deactivate:
         frame_skip = 1
+        print(" --- Frame skipping deactivated. --- ")
 
     with torch.no_grad():
         q_values = policy_net(state_tensor)
