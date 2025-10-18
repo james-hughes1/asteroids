@@ -75,7 +75,9 @@ max_steps_per_episode = config.get("max_steps_per_episode", 1000)
 gamma = config.get("gamma", 0.99)
 
 batch_size = config.get("batch_size", 32)
-learning_rate = config.get("learning_rate", 0.0005)
+learning_rate_start = config.get("learning_rate_start", 0.0005)
+learning_rate_decay = config.get("learning_rate_decay", 0.8)
+learning_rate_interval = config.get("learning_rate_interval", 1_000_000)
 
 replay_capacity = config.get("replay_capacity", 2_000)
 target_update_interval = config.get("target_update_interval", 10_000)
@@ -134,7 +136,7 @@ target_net = DQN(input_shape, n_actions).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
-optimizer = optim.Adam(policy_net.parameters(), lr=learning_rate)
+optimizer = optim.Adam(policy_net.parameters(), lr=learning_rate_start)
 
 replay_buffer = PrioritizedReplayBuffer(replay_capacity, alpha)
 
@@ -143,6 +145,12 @@ frame_idx = frame_idx_start
 episode_rewards = []
 eval_scores = []
 complete_rates = []
+
+# --- Initialize learning rate ---
+lr_multiplier = learning_rate_decay ** (frame_idx // learning_rate_interval)
+learning_rate = learning_rate_start * lr_multiplier
+for param_group in optimizer.param_groups:
+    param_group['lr'] = learning_rate
 
 # --- Per-env trackers ---
 obs, _ = env.reset()
@@ -174,6 +182,13 @@ log_history = []
 print(f"Starting training for {max_frames:,} total frames across {num_envs} envs")
 
 while frame_idx < max_frames:
+    # --- Update learning rate ---
+    if frame_idx % learning_rate_interval < (num_envs * frame_skip):
+        lr_multiplier = learning_rate_decay ** (frame_idx // learning_rate_interval)
+        learning_rate = learning_rate_start * lr_multiplier
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = learning_rate
+
     # --- Choose actions for all envs ---
     state_tensor = torch.tensor(states, dtype=torch.float32).to(device)
     state_tensor = state_tensor.reshape(num_envs, -1, state_tensor.shape[-2], state_tensor.shape[-1])
@@ -285,7 +300,7 @@ while frame_idx < max_frames:
         print(f"Frame {frame_idx:,} | Loss={mean_loss:.4f} | Q means sorted={mean_q} | "
             f"TD={mean_td:.3f}±{std_td:.3f} | Entropy={action_entropy:.3f} | "
             f"Recent reward={avg_recent_reward:.2f} | Avg ep length={avg_recent_length:.1f}")
-        print(f"Curriculum: Current max asteroid speed={current_max_speed[0]:.2f}")
+        print(f"Training: Current max asteroid speed={current_max_speed[0]:.2f} | Epsilon={epsilon:.3f} | Learning rate={learning_rate:.6f}")
 
         # --- JSON row ---
         log_row = {
