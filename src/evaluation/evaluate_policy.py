@@ -16,6 +16,7 @@ def evaluate_policy(
     num_eval_episodes,
     base_seed=42,
     deterministic=True,
+    epsilon_eval=0.0,
 ):
     """
     Evaluate a trained (or training) DQN policy.
@@ -30,6 +31,7 @@ def evaluate_policy(
         max_steps: Max steps per episode
         base_seed: Seed for reproducibility
         deterministic: If True, uses fixed seeds (for consistent evaluation)
+        epsilon_eval: Probability of taking a random action (like ε-greedy during training)
 
     Returns:
         mean_score: float
@@ -43,6 +45,7 @@ def evaluate_policy(
     all_frames = []
     step_counts = []
     complete_rate = 0.0
+    n_actions = env.action_space.n
 
     for ep in range(num_eval_episodes):
         stacked_frames = deque(maxlen=num_frames)
@@ -60,8 +63,17 @@ def evaluate_policy(
         while not done and steps < max_steps:
             state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
             state_tensor = state_tensor.view(1, *input_shape)
+
+            # --- ε-greedy action selection for evaluation ---
             with torch.no_grad():
-                action = policy_net(state_tensor).argmax(dim=1).item()
+                q_values = policy_net(state_tensor)
+                greedy_action = q_values.argmax(dim=1).item()
+
+            if np.random.rand() < epsilon_eval:
+                action = np.random.randint(0, n_actions)
+            else:
+                action = greedy_action
+            # -------------------------------------------------
 
             obs, reward, done, truncated, info = env.step(action)
             state, stacked_frames = stack_frames(

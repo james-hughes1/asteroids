@@ -69,6 +69,7 @@ else:
     policy_net = DQN(input_shape, n_actions).to(device)
 
 max_frames = config.get("max_frames", 40_000_000)
+frame_idx_start = config.get("frame_idx_start", 0)
 max_steps_per_episode = config.get("max_steps_per_episode", 1000)
 
 gamma = config.get("gamma", 0.99)
@@ -138,7 +139,7 @@ optimizer = optim.Adam(policy_net.parameters(), lr=learning_rate)
 replay_buffer = PrioritizedReplayBuffer(replay_capacity, alpha)
 
 # --- Frame-level bookkeeping ---
-frame_idx = 0
+frame_idx = frame_idx_start
 episode_rewards = []
 eval_scores = []
 complete_rates = []
@@ -357,13 +358,14 @@ while frame_idx < max_frames:
             device,
             num_frames,
             max_steps_per_episode,
-            num_eval_episodes=eval_episodes
+            num_eval_episodes=eval_episodes,
+            epsilon_eval=0.0
         )
         gif_path = f"gifs/play_{frame_idx}.gif"
         save_gif(sample_frames(frames, n=500), gif_path)
         eval_scores.append(avg_score)
         complete_rates.append(complete_rate)
-        print(f"Saved model + eval (avg={avg_score:.2f}, best={best_score:.2f}) → {gif_path}, worst={worst_score:.2f}, complete rate={complete_rate*100:.2f}%")
+        print(f"Saved model + eval (worst={worst_score:.2f}, avg={avg_score:.2f}, best={best_score:.2f}) → {gif_path}, complete rate={complete_rate*100:.2f}%")
 
 # --- Wrap-up ---
 env.close()
