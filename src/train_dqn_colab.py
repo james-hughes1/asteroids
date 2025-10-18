@@ -125,7 +125,7 @@ def make_env():
             frame_skip=frame_skip
         )
     return _init
-env = AsyncVectorEnv([make_env() for _ in range(num_envs)])
+env = AsyncVectorEnv([make_env() for _ in range(num_envs)], autoreset_mode=gym.vector.AutoresetMode.NEXT_STEP)
 n_actions = env.single_action_space.n
 
 # --- Build target network ---
@@ -211,7 +211,6 @@ while frame_idx < max_frames:
         # --- Reset done environments mid-skip ---
         for i, done in enumerate(dones_step):
             if done:
-                next_obs[i], _ = env.envs[i].reset()
                 completed_returns.append(env_returns[i] + rewards_step[i])
                 completed_lengths.append(episode_steps[i] + frame_skip)
                 env_returns[i] = 0
