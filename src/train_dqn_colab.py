@@ -209,11 +209,13 @@ while frame_idx < max_frames:
         next_obs = obs_step  # overwrite with last observation
 
         # --- Reset done environments mid-skip ---
-        if dones_step.any():
-            reset_obs, _ = env.reset()
-            for i, done in enumerate(dones_step):
-                if done:
-                    next_obs[i] = reset_obs[i]
+        for i, done in enumerate(dones_step):
+            if done:
+                next_obs[i], _ = env.envs[i].reset()
+                completed_returns.append(env_returns[i] + rewards_step[i])
+                completed_lengths.append(episode_steps[i] + frame_skip)
+                env_returns[i] = 0
+                episode_steps[i] = 0
 
     # --- Preprocess next states and push to replay buffer ---
     next_states = []
@@ -225,11 +227,6 @@ while frame_idx < max_frames:
         # --- Update per-episode stats ---
         env_returns[i] += total_rewards[i]
         episode_steps[i] += frame_skip
-        if dones_any[i]:
-            completed_returns.append(env_returns[i])
-            completed_lengths.append(episode_steps[i])
-            env_returns[i] = 0.0
-            episode_steps[i] = 0
 
         next_states.append(ns)
 
