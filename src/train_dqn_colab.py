@@ -29,14 +29,6 @@ from utils.model_io import save_model, load_model
 import shutil
 import datetime
 
-# Create a unique timestamped folder
-timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-drive_base_dir = "/content/drive/MyDrive/asteroids_models"
-run_dir = os.path.join(drive_base_dir, f"run_{timestamp}")
-os.makedirs(run_dir, exist_ok=True)
-
-print(f"Logging run to {run_dir}")
-
 # --- Device ---
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -105,6 +97,17 @@ num_envs = min(num_envs, os.cpu_count() or 1)
 print(f"Using {num_envs} environments/cores for training.")
 
 eval_episodes = config.get("eval_episodes", 10)  # number of episodes during eval
+
+google_drive_backup = config.get("google_drive_backup", True)
+
+# Create a unique timestamped folder
+if google_drive_backup:
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    drive_base_dir = "/content/drive/MyDrive/asteroids_models"
+    run_dir = os.path.join(drive_base_dir, f"run_{timestamp}")
+    os.makedirs(run_dir, exist_ok=True)
+
+    print(f"Backing up run to {run_dir}")
 
 # --- Directories ---
 os.makedirs("models", exist_ok=True)
@@ -223,11 +226,13 @@ while frame_idx < max_frames:
         dones_any |= dones_step
         next_obs = obs_step  # overwrite with last observation
 
-        # --- Reset done environments mid-skip ---
+        # --- Track episode rewards and lengths ---
         for i, done in enumerate(dones_step):
+            env_returns[i] += rewards_step[i]
+            episode_steps[i] += 1
             if done:
-                completed_returns.append(env_returns[i] + rewards_step[i])
-                completed_lengths.append(episode_steps[i] + frame_skip)
+                completed_returns.append(env_returns[i])
+                completed_lengths.append(episode_steps[i])
                 env_returns[i] = 0
                 episode_steps[i] = 0
 
@@ -238,10 +243,6 @@ while frame_idx < max_frames:
             stacked_frames[i], next_obs[i], dones_any[i], num_frames, (input_shape[1], input_shape[2])
         )
         replay_buffer.push(states[i], actions[i], total_rewards[i], ns, dones_any[i])
-        # --- Update per-episode stats ---
-        env_returns[i] += total_rewards[i]
-        episode_steps[i] += frame_skip
-
         next_states.append(ns)
 
     states = np.stack(next_states)  # convert to array at the end
@@ -344,14 +345,14 @@ while frame_idx < max_frames:
         save_model(policy_net, config, n_actions, model_path)
 
         # Backup to Drive
-        drive_checkpoint_path = os.path.join(run_dir, f"policy_net_{frame_idx}.pth")
-        shutil.copy(model_path, drive_checkpoint_path)
-        print(f"Checkpoint saved to Google Drive: {drive_checkpoint_path}")
+        if google_drive_backup:
+            drive_checkpoint_path = os.path.join(run_dir, f"policy_net_{frame_idx}.pth")
+            shutil.copy(model_path, drive_checkpoint_path)
+            print(f"Checkpoint saved to Google Drive: {drive_checkpoint_path}")
 
-        # Backup to Drive
-        drive_log_path = os.path.join(run_dir, "training_results.json")
-        shutil.copy("logs/training_results.json", drive_log_path)
-        print(f"Results saved to Google Drive: {drive_log_path}")
+            drive_log_path = os.path.join(run_dir, "training_results.json")
+            shutil.copy("logs/training_results.json", drive_log_path)
+            print(f"Results saved to Google Drive: {drive_log_path}")
 
         avg_score, best_score, worst_score, frames, _, complete_rate = evaluate_policy(
             AsteroidsEnv(
@@ -400,8 +401,9 @@ with open("logs/training_summary.json", "w") as f:
 
 # Copy logs
 drive_log_path = os.path.join(run_dir, "training_summary.json")
-shutil.copy("logs/training_summary.json", drive_log_path)
-print(f"Logs copied to Google Drive: {drive_log_path}")
+if google_drive_backup:
+    shutil.copy("logs/training_summary.json", drive_log_path)
+    print(f"Logs copied to Google Drive: {drive_log_path}")
 
 plt.figure()
 plt.plot(completed_returns, label="Episode rewards")
@@ -414,6 +416,7 @@ plt.title("Vectorized DQN Training Progress")
 plt.savefig("logs/training_scores.png")
 
 # Copy plot
-drive_plot_path = os.path.join(run_dir, "training_scores.png")
-shutil.copy("logs/training_scores.png", drive_plot_path)
+if google_drive_backup:
+    drive_plot_path = os.path.join(run_dir, "training_scores.png")
+    shutil.copy("logs/training_scores.png", drive_plot_path)
 print(f"Logs copied to Google Drive: {drive_plot_path}")

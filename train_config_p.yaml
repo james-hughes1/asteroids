@@ -39,3 +39,5 @@ num_envs: 16
 
 eval_episodes: 10
 init_model_path: ""
+
+google_drive_logging: true
