@@ -194,7 +194,7 @@ class AsteroidsEnv(gym.Env):
                 if (ax - b[0]) ** 2 + (ay - b[1]) ** 2 < (size / 2) ** 2:
                     hit = True
                     self.bullets.remove(b)
-                    reward += (200 - size) / 1000  # smaller asteroids give more reward
+                    reward += (100 - size) / 200  # smaller asteroids give more reward
                     if size > 30:
                         # split asteroid
                         for _ in range(2):
