@@ -294,7 +294,7 @@ while frame_idx < max_frames:
         # Episode stats over last 100 episodes or fewer
         recent_rewards = completed_returns[-100:]
         recent_lengths = completed_lengths[-100:]
-        avg_recent_reward = float(np.mean(recent_rewards)) if recent_rewards else 0.0
+        avg_recent_reward = float(np.sum(recent_rewards)/(np.sum(recent_lengths) + 1e-6)) if recent_rewards else 0.0
         avg_recent_length = float(np.mean(recent_lengths)) if recent_lengths else 0.0
 
         # --- Print nicely ---

@@ -92,13 +92,13 @@ def evaluate_policy(
 
     complete_rate /= num_eval_episodes
 
-    mean_score = np.mean(scores)
+    mean_score = np.sum(scores)/np.sum(step_counts)
     best_idx = int(np.argmax(scores))
     best_score = scores[best_idx]
     worst_idx = int(np.argmin(scores))
     worst_score = scores[worst_idx]
 
-    return mean_score, best_score, worst_score, all_frames[best_idx], all_frames[worst_idx], complete_rate
+    return mean_score, best_score/len(all_frames[best_idx]), worst_score/len(all_frames[worst_idx]), all_frames[best_idx], all_frames[worst_idx], complete_rate
 
 # --- GIF saving function ---
 def save_gif(frames, filename="gifs/play.gif", network_size=(84,84), scale=4):
