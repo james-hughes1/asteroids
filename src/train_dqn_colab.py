@@ -201,7 +201,7 @@ while frame_idx < max_frames:
     epsilon = epsilon_final + (epsilon_start - epsilon_final) * np.exp(-1.0 * frame_idx / epsilon_decay)
 
     # --- Deactivate frame skipping after certain frames ---
-    if frame_idx >= frame_skip_deactivate:
+    if frame_idx >= frame_skip_deactivate and frame_skip > 1:
         frame_skip = 1
         print(" --- Frame skipping deactivated. --- ")
 
