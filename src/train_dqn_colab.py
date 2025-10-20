@@ -362,7 +362,7 @@ while frame_idx < max_frames:
                 max_steps=max_steps_per_episode,
                 num_asteroids=num_asteroids,
                 max_asteroid_size=max_asteroid_size,
-                max_asteroid_speed=current_max_speed[0],
+                max_asteroid_speed=max_asteroid_speed_end,
                 frame_skip=1
             ),
             policy_net,
@@ -377,7 +377,7 @@ while frame_idx < max_frames:
         save_gif(sample_frames(frames, n=500), gif_path)
         eval_scores.append(avg_score)
         complete_rates.append(complete_rate)
-        print(f"Saved model + eval (worst={worst_score:.4f}, avg={avg_score:.2f}, best={best_score:.2f}) → {gif_path}, complete rate={complete_rate*100:.2f}%")
+        print(f"Saved model + eval (worst={worst_score:.4f}, avg={avg_score:.4f}, best={best_score:.4f}) → {gif_path}, complete rate={complete_rate*100:.2f}%")
 
 # --- Wrap-up ---
 env.close()

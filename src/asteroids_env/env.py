@@ -118,7 +118,7 @@ class AsteroidsEnv(gym.Env):
         return ship_mask, asteroid_masks
 
     def step(self, action):
-        reward = -0.001
+        reward = 0.0
         if self.done:
             return self._get_obs(), 0.0, True, False, {}
 
@@ -194,7 +194,7 @@ class AsteroidsEnv(gym.Env):
                 if (ax - b[0]) ** 2 + (ay - b[1]) ** 2 < (size / 2) ** 2:
                     hit = True
                     self.bullets.remove(b)
-                    reward += (100 - size) / 200  # smaller asteroids give more reward
+                    reward += (100 - size) / 100  # smaller asteroids give more reward
                     if size > 30:
                         # split asteroid
                         for _ in range(2):

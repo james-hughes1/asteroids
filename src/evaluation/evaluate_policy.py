@@ -98,6 +98,19 @@ def evaluate_policy(
     worst_idx = int(np.argmin(scores))
     worst_score = scores[worst_idx]
 
+    # Header
+    print("\nEvaluation Results:")
+    print(f"{'Episode':>8} | {'Total':>10} | {'Steps':>10} | {'Avg. Score':>10}")
+    print("-" * 34)
+
+    # Rows
+    for i, (s, steps) in enumerate(zip(scores, step_counts), start=1):
+        print(f"{i:8d} | {s:10.2f} | {steps:10d} | {s/steps if steps > 0 else 0:10.2f}")
+
+    # Means
+    print("-" * 34)
+    print(f"{'Mean':>8} | {np.mean(scores):10.2f} | {mean_score:10.2f}")
+
     return mean_score, best_score/len(all_frames[best_idx]), worst_score/len(all_frames[worst_idx]), all_frames[best_idx], all_frames[worst_idx], complete_rate
 
 # --- GIF saving function ---
