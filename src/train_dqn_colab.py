@@ -73,7 +73,8 @@ learning_rate_interval = config.get("learning_rate_interval", 1_000_000)
 
 replay_capacity = config.get("replay_capacity", 2_000)
 target_update_interval = config.get("target_update_interval", 10_000)
-save_interval = config.get("save_interval", 50_000)
+save_interval = config.get("save_interval", 500_000)
+eval_interval = config.get("eval_interval", 200_000)
 log_interval = config.get("log_interval", 10_000)
 frame_skip = config.get("frame_skip", 1)
 frame_skip_deactivate = config.get("frame_skip_deactivate", 20_000_000)
@@ -354,6 +355,7 @@ while frame_idx < max_frames:
             shutil.copy("logs/training_results.json", drive_log_path)
             print(f"Results saved to Google Drive: {drive_log_path}")
 
+    if frame_idx % eval_interval < (num_envs * frame_skip):
         avg_score, best_score, worst_score, frames, _, complete_rate = evaluate_policy(
             AsteroidsEnv(
                 render_mode="rgb_array",
