@@ -300,7 +300,7 @@ while frame_idx < max_frames:
         # --- Print nicely ---
         print(f"Frame {frame_idx:,} | Loss={mean_loss:.4f} | Q means sorted={mean_q} | "
             f"TD={mean_td:.3f}±{std_td:.3f} | Entropy={action_entropy:.3f} | "
-            f"Recent reward={avg_recent_reward:.2f} | Avg ep length={avg_recent_length:.1f}")
+            f"Recent reward={avg_recent_reward:.4f} | Avg ep length={avg_recent_length:.1f}")
         print(f"Training: Current max asteroid speed={current_max_speed[0]:.2f} | Epsilon={epsilon:.3f} | Learning rate={learning_rate:.6f}")
 
         # --- JSON row ---
@@ -377,7 +377,7 @@ while frame_idx < max_frames:
         save_gif(sample_frames(frames, n=500), gif_path)
         eval_scores.append(avg_score)
         complete_rates.append(complete_rate)
-        print(f"Saved model + eval (worst={worst_score:.2f}, avg={avg_score:.2f}, best={best_score:.2f}) → {gif_path}, complete rate={complete_rate*100:.2f}%")
+        print(f"Saved model + eval (worst={worst_score:.4f}, avg={avg_score:.2f}, best={best_score:.2f}) → {gif_path}, complete rate={complete_rate*100:.2f}%")
 
 # --- Wrap-up ---
 env.close()

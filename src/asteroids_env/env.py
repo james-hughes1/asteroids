@@ -63,7 +63,7 @@ class AsteroidsEnv(gym.Env):
             while abs(x - self.ship_x) < 120 and abs(y - self.ship_y) < 120:
                 x, y = random.randint(0, self.width), random.randint(0, self.height)
             dx, dy = random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed), random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed)
-            size = random.randint(30, self.max_asteroid_size)
+            size = self.max_asteroid_size
             self.asteroids.append([x, y, dx, dy, size])
 
         self.steps = 0
@@ -118,7 +118,7 @@ class AsteroidsEnv(gym.Env):
         return ship_mask, asteroid_masks
 
     def step(self, action):
-        reward = 0
+        reward = -0.001
         if self.done:
             return self._get_obs(), 0.0, True, False, {}
 

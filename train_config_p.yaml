@@ -5,32 +5,32 @@ channels_per_frame: 3
 input_shape_2d: [96, 96]
 n_actions: 5
 
-max_frames: 40_000_000
+max_frames: 20_000_000
 frame_idx_start: 0
 max_steps_per_episode: 3_000
 num_asteroids: 4
 max_asteroid_size: 90
-max_asteroid_speed_start: 1.0
+max_asteroid_speed_start: 1.2
 max_asteroid_speed_end: 2.0
-max_asteroid_speed_ramp: 2_500_000
+max_asteroid_speed_ramp: 5_000_000
 
 gamma: 0.99
 
 epsilon_start: 1.0
 epsilon_final: 0.05
-epsilon_decay: 5_000_000
+epsilon_decay: 4_000_000
 
 batch_size: 64
-learning_rate_start: 0.00001
-learning_rate_decay: 1.0
+learning_rate_start: 0.00005
+learning_rate_decay: 0.8
 learning_rate_interval: 2_000_000
 
 replay_capacity: 100_000
-target_update_interval: 50_000
+target_update_interval: 20_000
 save_interval: 500_000
 log_interval: 10_000
 frame_skip: 4
-frame_skip_deactivate: 37_500_000
+frame_skip_deactivate: 10_000_000
 
 alpha: 0.3
 beta_start: 0.4
