@@ -240,26 +240,19 @@ class AsteroidsEnv(gym.Env):
         return self._get_obs(), reward, self.done, False, {}
 
     def _get_obs(self):
+        # return image of game
         surface = pygame.Surface((self.width, self.height))
         surface.fill((0, 0, 0))
 
-        def wrap_positions(x, y):
-            """Return list of wrapped (x, y) offsets for toroidal continuity."""
-            offsets = [-self.width, 0, self.width]
-            return [(x + dx, y + dy) for dx in offsets for dy in offsets]
-
-        # --- draw asteroids (with wrap continuity) ---
+        # draw asteroids
         for a in self.asteroids:
-            ax, ay, _, _, size = a
-            for wx, wy in wrap_positions(ax, ay):
-                pygame.draw.circle(surface, (255, 0, 0), (int(wx) % self.width, int(wy) % self.height), size // 2, 4)
+            pygame.draw.circle(surface, (255, 0, 0), (int(a[0]), int(a[1])), a[4] // 2, 4)
 
-        # --- draw bullets (with wrap continuity) ---
+        # draw bullets
         for b in self.bullets:
-            for wx, wy in wrap_positions(b[0], b[1]):
-                pygame.draw.circle(surface, (0, 255, 0), (int(wx) % self.width, int(wy) % self.height), 4)
+            pygame.draw.circle(surface, (0, 255, 0), (int(b[0]), int(b[1])), 4)
 
-        # --- draw ship as T shape (with wrap continuity) ---
+        # --- draw ship as T ---
         ship_surf = pygame.Surface((self.ship_width*4, self.ship_height*2), pygame.SRCALPHA)
         ship_surf.fill((0,0,0,0))
 
@@ -273,9 +266,8 @@ class AsteroidsEnv(gym.Env):
 
         # rotate ship according to angle
         rotated_ship = pygame.transform.rotate(ship_surf, self.ship_angle)
-        for wx, wy in wrap_positions(self.ship_x, self.ship_y):
-            rect = rotated_ship.get_rect(center=(wx, wy))
-            surface.blit(rotated_ship, rect.topleft)
+        rect = rotated_ship.get_rect(center=(self.ship_x, self.ship_y))
+        surface.blit(rotated_ship, rect.topleft)
 
         if self.render_mode == "rgb_array":
             return np.array(pygame.surfarray.array3d(surface)).transpose(1,0,2)
