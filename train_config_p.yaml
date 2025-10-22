@@ -9,13 +9,13 @@ max_frames: 10_000_000
 frame_idx_start: 0
 max_steps_per_episode: 500
 max_asteroid_size: 90
-num_asteroids_start: 1
+num_asteroids: 1
 max_asteroid_speed: 1.0
 max_asteroid_speed_end: 1.0
 max_asteroid_speed_ramp: 2_000_000
 
 death_reward: -1.0
-asteroid_destroyed_reward_scalar: 1.0
+asteroid_destroyed_reward_scalar: 0.25
 
 gamma: 0.99
 
