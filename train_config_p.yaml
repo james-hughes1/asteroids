@@ -10,7 +10,7 @@ frame_idx_start: 0
 max_steps_per_episode: 3_000
 max_asteroid_size: 90
 num_asteroids_start: 1
-max_asteroid_speed_start: 1.5
+max_asteroid_speed: 1.5
 max_asteroid_speed_end: 1.5
 max_asteroid_speed_ramp: 2_000_000
 
