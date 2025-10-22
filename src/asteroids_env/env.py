@@ -8,7 +8,7 @@ import random
 class AsteroidsEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self, render_mode="rgb_array", width=128, height=128, max_steps=1000, num_asteroids=5, max_asteroid_size=90, max_asteroid_speed=0.5, frame_skip=1):
+    def __init__(self, render_mode="rgb_array", width=128, height=128, max_steps=1000, num_asteroids=5, max_asteroid_size=90, max_asteroid_speed=0.5, death_reward=-1.0, asteroid_destroyed_reward_scalar=1.0, frame_skip=1):
         super().__init__()
 
         self.width = width
@@ -17,6 +17,8 @@ class AsteroidsEnv(gym.Env):
         self.num_asteroids = num_asteroids
         self.max_asteroid_size = max_asteroid_size
         self.max_asteroid_speed = max_asteroid_speed
+        self.death_reward = death_reward
+        self.asteroid_destroyed_reward_scalar = asteroid_destroyed_reward_scalar
         self.frame_skip = frame_skip
         self.render_mode = render_mode
 
@@ -194,7 +196,7 @@ class AsteroidsEnv(gym.Env):
                 if (ax - b[0]) ** 2 + (ay - b[1]) ** 2 < (size / 2) ** 2:
                     hit = True
                     self.bullets.remove(b)
-                    reward += (100 - size) / 200  # smaller asteroids give more reward
+                    reward += (100 - size) * self.asteroid_destroyed_reward_scalar / 100  # smaller asteroids give more reward
                     if size > 30:
                         # split asteroid
                         for _ in range(2):
@@ -217,7 +219,7 @@ class AsteroidsEnv(gym.Env):
             ship_mask, asteroid_masks = self._get_masks(nearby_asteroids)
             for ast_mask in asteroid_masks:
                 if np.any(ship_mask & ast_mask):
-                    reward -= 1
+                    reward += self.death_reward
                     self.done = True
 
                     # # --- Dump masks to PNG for debugging ---
@@ -238,19 +240,26 @@ class AsteroidsEnv(gym.Env):
         return self._get_obs(), reward, self.done, False, {}
 
     def _get_obs(self):
-        # return image of game
         surface = pygame.Surface((self.width, self.height))
         surface.fill((0, 0, 0))
 
-        # draw asteroids
+        def wrap_positions(x, y):
+            """Return list of wrapped (x, y) offsets for toroidal continuity."""
+            offsets = [-self.width, 0, self.width]
+            return [(x + dx, y + dy) for dx in offsets for dy in offsets]
+
+        # --- draw asteroids (with wrap continuity) ---
         for a in self.asteroids:
-            pygame.draw.circle(surface, (255, 0, 0), (int(a[0]), int(a[1])), a[4] // 2, 4)
+            ax, ay, _, _, size = a
+            for wx, wy in wrap_positions(ax, ay):
+                pygame.draw.circle(surface, (255, 0, 0), (int(wx) % self.width, int(wy) % self.height), size // 2, 4)
 
-        # draw bullets
+        # --- draw bullets (with wrap continuity) ---
         for b in self.bullets:
-            pygame.draw.circle(surface, (0, 255, 0), (int(b[0]), int(b[1])), 4)
+            for wx, wy in wrap_positions(b[0], b[1]):
+                pygame.draw.circle(surface, (0, 255, 0), (int(wx) % self.width, int(wy) % self.height), 4)
 
-        # --- draw ship as T ---
+        # --- draw ship as T shape (with wrap continuity) ---
         ship_surf = pygame.Surface((self.ship_width*4, self.ship_height*2), pygame.SRCALPHA)
         ship_surf.fill((0,0,0,0))
 
@@ -264,8 +273,9 @@ class AsteroidsEnv(gym.Env):
 
         # rotate ship according to angle
         rotated_ship = pygame.transform.rotate(ship_surf, self.ship_angle)
-        rect = rotated_ship.get_rect(center=(self.ship_x, self.ship_y))
-        surface.blit(rotated_ship, rect.topleft)
+        for wx, wy in wrap_positions(self.ship_x, self.ship_y):
+            rect = rotated_ship.get_rect(center=(wx, wy))
+            surface.blit(rotated_ship, rect.topleft)
 
         if self.render_mode == "rgb_array":
             return np.array(pygame.surfarray.array3d(surface)).transpose(1,0,2)

@@ -90,6 +90,9 @@ max_asteroid_speed_end = config.get("max_asteroid_speed_end", 2.5)
 max_asteroid_speed = max_asteroid_speed_start
 max_asteroid_speed_ramp = config.get("max_asteroid_speed_ramp", 1_000_000)
 
+death_reward = config.get("death_reward", -1.0)
+asteroid_destroyed_reward_scalar = config.get("asteroid_destroyed_reward_scalar", 1.0)
+
 alpha = config.get("alpha", 0.6)
 beta_start = config.get("beta_start", 0.4)
 
@@ -128,6 +131,8 @@ def make_env():
             num_asteroids=num_asteroids,
             max_asteroid_size=max_asteroid_size,
             max_asteroid_speed=current_max_speed[0],
+            death_reward=death_reward,
+            asteroid_destroyed_reward_scalar=asteroid_destroyed_reward_scalar,
             frame_skip=frame_skip
         )
     return _init
@@ -364,7 +369,9 @@ while frame_idx < max_frames:
                 max_steps=max_steps_per_episode,
                 num_asteroids=num_asteroids,
                 max_asteroid_size=max_asteroid_size,
-                max_asteroid_speed=max_asteroid_speed_end,
+                max_asteroid_speed=current_max_speed[0],
+                death_reward=death_reward,
+                asteroid_destroyed_reward_scalar=asteroid_destroyed_reward_scalar,
                 frame_skip=1
             ),
             policy_net,
