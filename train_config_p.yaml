@@ -8,10 +8,10 @@ n_actions: 5
 max_frames: 20_000_000
 frame_idx_start: 0
 max_steps_per_episode: 3_000
-num_asteroids: 4
 max_asteroid_size: 90
-max_asteroid_speed_start: 0.8
-max_asteroid_speed_end: 2.0
+num_asteroids_start: 1
+max_asteroid_speed_start: 1.5
+max_asteroid_speed_end: 1.5
 max_asteroid_speed_ramp: 2_000_000
 
 gamma: 0.99
