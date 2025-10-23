@@ -4,6 +4,7 @@ from collections import deque
 import cv2
 import imageio
 from utils.preprocess import stack_frames, preprocess_frame
+from PIL import Image, ImageDraw, ImageFont
 
 
 def evaluate_policy(
@@ -40,12 +41,14 @@ def evaluate_policy(
         best_frames: list of RGB frames (best-performing episode)
         worst_frames: list of RGB frames (worst-performing episode)
         complete_rate: float (fraction of episodes where all asteroids were destroyed)
+        cumulative_rewards: list of cumulative rewards for the best episode
     """
     scores = []
     all_frames = []
     step_counts = []
     complete_rate = 0.0
     n_actions = env.action_space.n
+    cumulative_rewards_full = []
 
     for ep in range(num_eval_episodes):
         stacked_frames = deque(maxlen=num_frames)
@@ -56,6 +59,7 @@ def evaluate_policy(
         )
 
         done = False
+        cumulative_rewards = []
         total_reward = 0
         steps = 0
         frames = []
@@ -80,11 +84,14 @@ def evaluate_policy(
                 stacked_frames, obs, False, num_frames, (input_shape[1], input_shape[2])
             )
             total_reward += reward
+            cumulative_rewards.append(total_reward)
             steps += 1
             frames.append(obs)
 
         if len(env.asteroids) == 0:
             complete_rate += 1.0
+
+        cumulative_rewards_full.append(cumulative_rewards)
 
         scores.append(total_reward)
         all_frames.append(frames)
@@ -111,18 +118,36 @@ def evaluate_policy(
     print("-" * 46)
     print(f"{'Mean':>8} | {np.mean(scores):10.2f} | {np.mean(step_counts):10.2f} | {mean_score:10.4f}")
 
-    return mean_score, best_score/len(all_frames[best_idx]), worst_score/len(all_frames[worst_idx]), all_frames[best_idx], all_frames[worst_idx], complete_rate
+    return mean_score, best_score/len(all_frames[best_idx]), worst_score/len(all_frames[worst_idx]), all_frames[best_idx], all_frames[worst_idx], complete_rate, cumulative_rewards_full[best_idx]
 
 # --- GIF saving function ---
-def save_gif(frames, filename="gifs/play.gif", network_size=(84,84), scale=4):
+def save_gif(frames, filename="gifs/play.gif", network_size=(84,84), scale=4, rewards=None):
     """Save a gif, scaling up with nearest-neighbor so pixels stay blocky."""
     upscaled = []
-    for frame in frames:
-        h, w, _ = frame.shape
+    font = ImageFont.load_default()
+    for i, frame in enumerate(frames):
+        # Preprocess frame
         frame = preprocess_frame(frame, network_size=network_size, rgb=True, return_uint8=True)
         enlarged = np.repeat(np.repeat(frame, scale, axis=0), scale, axis=1)
-        upscaled.append(enlarged)
+
+        img = Image.fromarray(enlarged)
+        draw = ImageDraw.Draw(img)
+
+        # Overlay reward if provided
+        if rewards is not None and i < len(rewards):
+            text = f"Reward: {rewards[i]:.1f}"
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            pos = (img.width - text_w - 10, 10)  # top-right
+            draw.rectangle(
+                [pos[0] - 4, pos[1] - 2, pos[0] + text_w + 4, pos[1] + text_h + 2],
+                fill=(0, 0, 0, 180)
+            )
+            draw.text(pos, text, fill=(255, 255, 255), font=font)
+
+        upscaled.append(np.array(img))
     imageio.mimsave(filename, upscaled, fps=30)
+    print(f"Saved GIF: {filename}")
 
 def sample_frames(frames, n=200):
     if len(frames) <= n:
