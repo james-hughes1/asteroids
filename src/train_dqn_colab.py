@@ -200,6 +200,7 @@ while frame_idx < max_frames:
 
     # --- Choose actions for all envs ---
     state_tensor = torch.tensor(states, dtype=torch.float32).to(device)
+    state_tensor /= 255.0
     state_tensor = state_tensor.reshape(num_envs, -1, state_tensor.shape[-2], state_tensor.shape[-1])
 
     # --- Epsilon-greedy action selection ---
@@ -260,8 +261,8 @@ while frame_idx < max_frames:
         batch, indices, weights = replay_buffer.sample(batch_size, beta)
         s, a, r, ns, d = batch
 
-        s = torch.tensor(np.array(s), dtype=torch.float32).to(device).view(batch_size, *input_shape)
-        ns = torch.tensor(np.array(ns), dtype=torch.float32).to(device).view(batch_size, *input_shape)
+        s = torch.tensor(np.array(s), dtype=torch.float32).to(device).view(batch_size, *input_shape) / 255.0
+        ns = torch.tensor(np.array(ns), dtype=torch.float32).to(device).view(batch_size, *input_shape) / 255.0
         a = torch.tensor(a, dtype=torch.int64).unsqueeze(1).to(device)
         r = torch.tensor(r, dtype=torch.float32).unsqueeze(1).to(device)
         d = torch.tensor(d, dtype=torch.float32).unsqueeze(1).to(device)
@@ -361,7 +362,7 @@ while frame_idx < max_frames:
             print(f"Results saved to Google Drive: {drive_log_path}")
 
     if frame_idx % eval_interval < (num_envs * frame_skip):
-        avg_score, best_score, worst_score, frames, _, complete_rate = evaluate_policy(
+        avg_score, best_score, worst_score, frames, _, complete_rate, cumulative_rewards = evaluate_policy(
             AsteroidsEnv(
                 render_mode="rgb_array",
                 width=400,
@@ -383,7 +384,7 @@ while frame_idx < max_frames:
             epsilon_eval=0.0
         )
         gif_path = f"gifs/play_{frame_idx}.gif"
-        save_gif(sample_frames(frames, n=500), gif_path)
+        save_gif(sample_frames(frames, n=500), gif_path, network_size=(input_shape[1], input_shape[2]), rewards=cumulative_rewards)
         eval_scores.append(avg_score)
         complete_rates.append(complete_rate)
         print(f"Saved model + eval (worst={worst_score:.4f}, avg={avg_score:.4f}, best={best_score:.4f}) → {gif_path}, complete rate={complete_rate*100:.2f}%")
