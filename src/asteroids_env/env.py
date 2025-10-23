@@ -246,7 +246,7 @@ class AsteroidsEnv(gym.Env):
 
         # draw asteroids
         for a in self.asteroids:
-            pygame.draw.circle(surface, (255, 0, 0), (int(a[0]), int(a[1])), a[4] // 2, 4)
+            pygame.draw.circle(surface, (255, 0, 0), (int(a[0]), int(a[1])), a[4] // 2)
 
         # draw bullets
         for b in self.bullets:
