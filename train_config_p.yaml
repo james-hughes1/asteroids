@@ -8,8 +8,8 @@ n_actions: 5
 max_frames: 10_000_000
 frame_idx_start: 0
 max_steps_per_episode: 500
-max_asteroid_size: 90
-num_asteroids: 1
+max_asteroid_size: 120
+num_asteroids: 2
 max_asteroid_speed: 1.0
 max_asteroid_speed_end: 1.0
 max_asteroid_speed_ramp: 2_000_000
@@ -21,10 +21,10 @@ gamma: 0.99
 
 epsilon_start: 1.0
 epsilon_final: 0.05
-epsilon_decay: 2_000_000
+epsilon_decay: 1_000_000
 
 batch_size: 64
-learning_rate_start: 0.00001
+learning_rate_start: 0.0005
 learning_rate_decay: 0.8
 learning_rate_interval: 2_000_000
 
@@ -32,7 +32,7 @@ replay_capacity: 100_000
 target_update_interval: 20_000
 save_interval: 1_000_000
 log_interval: 10_000
-eval_interval: 200_000
+eval_interval: 100_000
 frame_skip: 4
 frame_skip_deactivate: 20_000_000
 
@@ -44,4 +44,4 @@ num_envs: 16
 eval_episodes: 10
 init_model_path: ""
 
-google_drive_logging: true
+google_drive_backup: true
