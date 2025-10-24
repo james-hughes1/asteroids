@@ -117,3 +117,54 @@ class DQN(nn.Module):
         conv_out = conv_out.view(conv_out.size(0), -1)
         x = F.relu(self.fc1(conv_out))
         return self.fc2(x)
+
+
+class DuelingDQN(nn.Module):
+    def __init__(self, input_shape, n_actions):
+        super().__init__()
+        c, h, w = input_shape
+
+        # conv body (unchanged)
+        self.conv = nn.Sequential(
+            nn.Conv2d(c, 32, kernel_size=8, stride=4, padding_mode="circular"),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding_mode="circular"),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding_mode="circular"),
+            nn.ReLU()
+        )
+
+        conv_out_size = self._get_conv_out(input_shape)
+
+        # common dense
+        self.fc_common = nn.Linear(conv_out_size, 512)
+        # dueling heads
+        self.fc_value = nn.Linear(512, 1)
+        self.fc_adv = nn.Linear(512, n_actions)
+
+        # small init to keep outputs initially near zero (optional but can help stability)
+        nn.init.kaiming_normal_(self.fc_common.weight, nonlinearity='relu')
+        nn.init.constant_(self.fc_common.bias, 0.)
+        nn.init.kaiming_normal_(self.fc_value.weight, nonlinearity='linear')
+        nn.init.constant_(self.fc_value.bias, 0.)
+        nn.init.kaiming_normal_(self.fc_adv.weight, nonlinearity='linear')
+        nn.init.constant_(self.fc_adv.bias, 0.)
+
+    def _get_conv_out(self, shape):
+        with torch.no_grad():
+            o = self.conv(torch.zeros(1, *shape))
+            return int(np.prod(o.size()))
+
+    def forward(self, x):
+        # x shape: (B, C, H, W)
+        conv_out = self.conv(x)
+        conv_out = conv_out.view(conv_out.size(0), -1)
+        x = F.relu(self.fc_common(conv_out))
+
+        value = self.fc_value(x)               # (B, 1)
+        adv = self.fc_adv(x)                   # (B, n_actions)
+
+        # Combine to Q-values: Q = V + (A - mean(A))
+        adv_mean = adv.mean(dim=1, keepdim=True)
+        q = value + (adv - adv_mean)           # (B, n_actions)
+        return q

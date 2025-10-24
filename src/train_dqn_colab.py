@@ -20,7 +20,7 @@ import gymnasium as gym
 from gymnasium.vector import AsyncVectorEnv
 
 from asteroids_env.env import AsteroidsEnv
-from training.dqn_model import DQN
+from training.dqn_model import DuelingDQN
 from training.replay_buffer import PrioritizedReplayBuffer
 from evaluation.evaluate_policy import evaluate_policy, save_gif, sample_frames
 from utils.preprocess import preprocess_frame, stack_frames
@@ -58,7 +58,7 @@ else:
     channels_per_frame = config.get("channels_per_frame", 3)
     input_shape = tuple([num_frames * channels_per_frame, *config["input_shape_2d"]])
     n_actions = config.get("n_actions", 5)
-    policy_net = DQN(input_shape, n_actions).to(device)
+    policy_net = DuelingDQN(input_shape, n_actions).to(device)
 
 max_frames = config.get("max_frames", 40_000_000)
 frame_idx_start = config.get("frame_idx_start", 0)
@@ -141,7 +141,7 @@ n_actions = env.single_action_space.n
 
 # --- Build target network ---
 print("Processing device: ", next(policy_net.parameters()).device)  # Check GPU
-target_net = DQN(input_shape, n_actions).to(device)
+target_net = DuelingDQN(input_shape, n_actions).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
