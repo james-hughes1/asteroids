@@ -1,6 +1,6 @@
 import os
 import torch
-from training.dqn_model import DQN
+from training.dqn_model import DuelingDQN
 
 def save_model(model, config, n_actions, save_path):
     """
@@ -51,7 +51,7 @@ def load_model(model_path, device="cpu"):
     n_actions = checkpoint["n_actions"]
 
     # Recreate model and load weights
-    model = DQN(input_shape, n_actions).to(device)
+    model = DuelingDQN(input_shape, n_actions).to(device)
     model.load_state_dict(checkpoint["state_dict"])
     #model.reset_noise()  # important for NoisyLinear layers
     model.eval()
