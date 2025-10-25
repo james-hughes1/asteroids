@@ -11,9 +11,9 @@ n_actions: 5                  # Number of discrete actions
 # PPO Hyperparameters
 # -------------------------------
 max_frames: 10_000_000          # Total environment steps
-update_timesteps: 4096        # Steps per PPO update (rollout length)
+update_timesteps: 1028        # Steps per PPO update (rollout length)
 ppo_epochs: 4                 # Number of PPO epochs per update
-mini_batch_size: 256           # Mini-batch size for optimization
+mini_batch_size: 128           # Mini-batch size for optimization
 gamma: 0.99                   # Discount factor
 gae_lambda: 0.95              # Lambda for GAE
 clip_coef: 0.2                # PPO clipping coefficient
