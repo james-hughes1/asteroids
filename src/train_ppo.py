@@ -17,7 +17,7 @@ from gymnasium.vector import AsyncVectorEnv
 from asteroids_env.env import AsteroidsEnv
 from utils.preprocess import stack_frames
 from utils.model_io import save_model
-from evaluation.evaluate_policy import evaluate_policy
+from evaluation.evaluate_policy import evaluate_policy, save_gif, sample_frames
 
 from training.ppo_model import PPOActorCritic
 
@@ -234,7 +234,7 @@ while global_step < total_timesteps:
             shutil.copy(f"models/ppo_model_{global_step}.pth", os.path.join(run_dir, f"ppo_model_{global_step}.pth"))
 
     if global_step % eval_interval < (num_envs * update_timesteps):
-        avg_score, best_score, worst_score, best_frames, _, complete_rate, _, _ = evaluate_policy(
+        avg_score, best_score, worst_score, best_frames, worst_frames, complete_rate, best_rewards, worst_rewards = evaluate_policy(
             AsteroidsEnv(
                 render_mode="rgb_array",
                 width=400, height=400,
@@ -254,6 +254,10 @@ while global_step < total_timesteps:
             max_steps_per_episode,
             num_eval_episodes=eval_episodes
         )
+        gif_path_best = f"gifs/play_{global_step}_best.gif"
+        gif_path_worst = f"gifs/play_{global_step}_worst.gif"
+        save_gif(sample_frames(best_frames, n=400), gif_path_best, network_size=(input_shape[1], input_shape[2]), rewards=best_rewards)
+        save_gif(sample_frames(worst_frames, n=400), gif_path_worst, network_size=(input_shape[1], input_shape[2]), rewards=worst_rewards)
         print(f"Eval → avg={avg_score:.3f}, best={best_score:.3f}, complete={complete_rate*100:.1f}%")
 
 envs.close()
