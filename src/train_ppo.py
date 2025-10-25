@@ -228,12 +228,12 @@ while global_step < total_timesteps:
     current_max_speed[0] = max_asteroid_speed_start + progress * (max_asteroid_speed_end - max_asteroid_speed_start)
     envs.call("set_difficulty", max_asteroid_speed=current_max_speed[0])
 
-    if global_step % save_interval < update_timesteps:
+    if global_step % save_interval < (num_envs * update_timesteps):
         save_model(model, config, n_actions, f"models/ppo_model_{global_step}.pth")
         if google_drive_backup:
             shutil.copy(f"models/ppo_model_{global_step}.pth", os.path.join(run_dir, f"ppo_model_{global_step}.pth"))
 
-    if global_step % eval_interval < update_timesteps:
+    if global_step % eval_interval < (num_envs * update_timesteps):
         avg_score, best_score, worst_score, best_frames, _, complete_rate, _, _ = evaluate_policy(
             AsteroidsEnv(
                 render_mode="rgb_array",
