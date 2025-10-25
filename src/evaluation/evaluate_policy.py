@@ -58,11 +58,8 @@ def evaluate_policy(
             state_tensor = state_tensor.view(1, *input_shape) / 255.0
 
             with torch.no_grad():
-                action_dist, _ = policy_net(state_tensor)
-                if deterministic:
-                    action = torch.argmax(action_dist.probs, dim=-1).item()
-                else:
-                    action = action_dist.sample().item()
+                action_tensor, _, _ = policy_net.get_action_and_value(state_tensor)
+                action = action_tensor.item()
 
             obs, reward, done, truncated, info = env.step(action)
             state, stacked_frames = stack_frames(stacked_frames, obs, False, num_frames, (input_shape[1], input_shape[2]))
