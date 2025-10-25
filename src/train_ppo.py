@@ -3,9 +3,7 @@
 import os
 import argparse
 import yaml
-import time
 import shutil
-import json
 import datetime
 from collections import deque
 import numpy as np
@@ -17,14 +15,13 @@ import gymnasium as gym
 from gymnasium.vector import AsyncVectorEnv
 
 from asteroids_env.env import AsteroidsEnv
-from utils.preprocess import preprocess_frame, stack_frames
+from utils.preprocess import stack_frames
 from utils.model_io import save_model
-from evaluation.evaluate_policy import evaluate_policy, save_gif, sample_frames
+from evaluation.evaluate_policy import evaluate_policy
 
 from training.ppo_model import PPOActorCritic
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 # -------------------------------
 # 1. Load config
@@ -32,16 +29,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, default="config/train_config.yaml")
 args = parser.parse_args()
-
 with open(args.config, "r") as f:
     config = yaml.safe_load(f)
 
-# Environment setup
-num_envs = config.get("num_envs", 16)
-num_envs = min(num_envs, os.cpu_count() or 1)
+num_envs = min(config.get("num_envs", 16), os.cpu_count() or 1)
 num_frames = config.get("num_frames", 5)
 channels_per_frame = config.get("channels_per_frame", 3)
-input_shape = tuple([num_frames * channels_per_frame, *config["input_shape_2d"]])
+input_shape = (num_frames * channels_per_frame, *config["input_shape_2d"])
 n_actions = config.get("n_actions", 5)
 
 # PPO hyperparameters
@@ -69,7 +63,7 @@ max_asteroid_speed_ramp = config.get("max_asteroid_speed_ramp", 1_000_000)
 death_reward = config.get("death_reward", -1.0)
 asteroid_destroyed_reward_scalar = config.get("asteroid_destroyed_reward_scalar", 1.0)
 
-# Logging / Saving
+# Logging / saving
 save_interval = config.get("save_interval", 500_000)
 eval_interval = config.get("eval_interval", 200_000)
 google_drive_backup = config.get("google_drive_backup", True)
@@ -83,7 +77,6 @@ if google_drive_backup:
 os.makedirs("models", exist_ok=True)
 os.makedirs("logs", exist_ok=True)
 os.makedirs("gifs", exist_ok=True)
-
 
 # -------------------------------
 # 2. Build vectorized envs
@@ -110,13 +103,11 @@ def make_env():
 envs = AsyncVectorEnv([make_env() for _ in range(num_envs)], autoreset_mode=gym.vector.AutoresetMode.NEXT_STEP)
 obs, _ = envs.reset()
 
-
 # -------------------------------
 # 3. Initialize PPO model
 # -------------------------------
 model = PPOActorCritic(input_shape, n_actions).to(device)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-5)
-
 
 # -------------------------------
 # 4. Storage
@@ -124,9 +115,10 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-5)
 obs_stack = [deque(maxlen=num_frames) for _ in range(num_envs)]
 states = []
 for i in range(num_envs):
-    s, obs_stack[i] = stack_frames(obs_stack[i], obs[i], True, num_frames, (input_shape[1], input_shape[2]))
+    s, obs_stack[i] = stack_frames(obs_stack[i], obs[i], True, num_frames, config["input_shape_2d"])
+    s = s.reshape(-1, *config["input_shape_2d"])  # flatten frames into channels
     states.append(s)
-states = np.stack(states)
+states = np.stack(states)  # shape: (num_envs, C, H, W)
 
 # Rollout buffers
 obs_buffer = np.zeros((update_timesteps, num_envs, *input_shape), dtype=np.float32)
@@ -136,28 +128,29 @@ rewards_buffer = np.zeros((update_timesteps, num_envs), dtype=np.float32)
 values_buffer = np.zeros((update_timesteps, num_envs), dtype=np.float32)
 dones_buffer = np.zeros((update_timesteps, num_envs), dtype=np.float32)
 
-
 # -------------------------------
-# 5. PPO training loop (memory-safe)
+# 5. PPO training loop
 # -------------------------------
 global_step = 0
 episode_returns = []
+
 print(f"Starting PPO training for {total_timesteps:,} steps across {num_envs} envs")
 
 while global_step < total_timesteps:
-    # ---- Rollout collection ----
     for t in range(update_timesteps):
+        # Prepare state tensor
+        s_tensor = torch.tensor(states, dtype=torch.float32, device=device) / 255.0
+
+        # Get action, logprob, value
         with torch.no_grad():
-            # states: (num_envs, C, H, W) at current timestep
-            s_tensor = torch.tensor(states, dtype=torch.float32, device=device) / 255.0
-            s_tensor = s_tensor.reshape(num_envs, num_frames * channels_per_frame, input_shape[1], input_shape[2])
             action, logprob, value = model.get_action_and_value(s_tensor)
 
+        # Step environments
         actions = action.cpu().numpy()
         next_obs, rewards, dones, truncs, infos = envs.step(actions)
         rewards = np.clip(rewards, -10, 10)
 
-        # store current step in rollout buffer
+        # Store in rollout buffer
         obs_buffer[t] = states
         actions_buffer[t] = actions
         logprobs_buffer[t] = logprob.cpu().numpy()
@@ -165,45 +158,41 @@ while global_step < total_timesteps:
         values_buffer[t] = value.cpu().numpy()
         dones_buffer[t] = dones
 
-        # ---- Prepare next states ----
+        # Prepare next states
         next_states = []
         for i in range(num_envs):
-            s, obs_stack[i] = stack_frames(
-                obs_stack[i], next_obs[i], dones[i], num_frames, (input_shape[1], input_shape[2])
-            )
+            s, obs_stack[i] = stack_frames(obs_stack[i], next_obs[i], dones[i], num_frames, config["input_shape_2d"])
+            s = s.reshape(-1, *config["input_shape_2d"])
             next_states.append(s)
-        states = np.stack(next_states)  # shape: (num_envs, C, H, W)
+        states = np.stack(next_states)
         global_step += num_envs
 
-    # ---- Compute advantages (GAE) ----
+    # Compute GAE advantages
     with torch.no_grad():
-        s_tensor = torch.tensor(states, dtype=torch.float32, device=device) / 255.0
-        s_tensor = s_tensor.reshape(num_envs, num_frames * channels_per_frame, input_shape[1], input_shape[2])
-        next_values = model.get_value(s_tensor).cpu().numpy()
+        next_values = model.get_value(torch.tensor(states, dtype=torch.float32, device=device) / 255.0).cpu().numpy()
 
     advantages = np.zeros_like(rewards_buffer)
     lastgaelam = 0
     for t in reversed(range(update_timesteps)):
         if t == update_timesteps - 1:
             nextnonterminal = 1.0 - dones_buffer[t]
-            nextvalues = next_values
+            nextval = next_values
         else:
             nextnonterminal = 1.0 - dones_buffer[t + 1]
-            nextvalues = values_buffer[t + 1]
-        delta = rewards_buffer[t] + gamma * nextvalues * nextnonterminal - values_buffer[t]
+            nextval = values_buffer[t + 1]
+        delta = rewards_buffer[t] + gamma * nextval * nextnonterminal - values_buffer[t]
         advantages[t] = lastgaelam = delta + gamma * gae_lambda * nextnonterminal * lastgaelam
     returns = advantages + values_buffer
 
-    # ---- Flatten rollout data for training ----
+    # Flatten rollout data
     batch_size = num_envs * update_timesteps
     b_obs = torch.tensor(obs_buffer.reshape(batch_size, *input_shape), device=device) / 255.0
     b_actions = torch.tensor(actions_buffer.flatten(), device=device)
     b_logprobs = torch.tensor(logprobs_buffer.flatten(), device=device)
     b_advantages = torch.tensor(advantages.flatten(), device=device)
     b_returns = torch.tensor(returns.flatten(), device=device)
-    b_values = torch.tensor(values_buffer.flatten(), device=device)
 
-    # ---- PPO optimization ----
+    # PPO update
     inds = np.arange(batch_size)
     for epoch in range(epochs):
         np.random.shuffle(inds)
@@ -216,24 +205,13 @@ while global_step < total_timesteps:
             mb_adv = b_advantages[mb_inds]
             mb_logprob_old = b_logprobs[mb_inds]
             mb_returns = b_returns[mb_inds]
-            mb_values = b_values[mb_inds]
 
-            # Evaluate actions
             newlogprob, entropy, newvalue = model.evaluate_actions(mb_obs, mb_actions)
-            logratio = newlogprob - mb_logprob_old
-            ratio = torch.exp(logratio)
+            ratio = torch.exp(newlogprob - mb_logprob_old)
 
-            # Policy loss (clipped)
-            pg_loss1 = -mb_adv * ratio
-            pg_loss2 = -mb_adv * torch.clamp(ratio, 1 - clip_coef, 1 + clip_coef)
-            pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-            # Value loss
-            v_loss = 0.5 * ((newvalue - mb_returns) ** 2).mean()
-
-            # Entropy loss
+            pg_loss = torch.max(-mb_adv * ratio, -mb_adv * torch.clamp(ratio, 1-clip_coef, 1+clip_coef)).mean()
+            v_loss = 0.5 * ((newvalue - mb_returns)**2).mean()
             entropy_loss = entropy.mean()
-
             loss = pg_loss + vf_coef * v_loss - ent_coef * entropy_loss
 
             optimizer.zero_grad()
@@ -241,29 +219,25 @@ while global_step < total_timesteps:
             nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
-    # ---- Logging / Curriculum / Saving ----
+    # Logging, curriculum, saving
     avg_return = np.mean(np.sum(rewards_buffer, axis=0))
-    print(f"Step {global_step:,} | Avg return (batch) = {avg_return:.3f}")
+    print(f"Step {global_step:,} | Avg return = {avg_return:.3f}")
     episode_returns.append(avg_return)
 
-    # Curriculum adjustment
     progress = min(1.0, global_step / max_asteroid_speed_ramp)
     current_max_speed[0] = max_asteroid_speed_start + progress * (max_asteroid_speed_end - max_asteroid_speed_start)
     envs.call("set_difficulty", max_asteroid_speed=current_max_speed[0])
 
-    # Save model periodically
     if global_step % save_interval < update_timesteps:
         save_model(model, config, n_actions, f"models/ppo_model_{global_step}.pth")
         if google_drive_backup:
             shutil.copy(f"models/ppo_model_{global_step}.pth", os.path.join(run_dir, f"ppo_model_{global_step}.pth"))
 
-    # Evaluate periodically
     if global_step % eval_interval < update_timesteps:
         avg_score, best_score, worst_score, best_frames, _, complete_rate, _, _ = evaluate_policy(
             AsteroidsEnv(
                 render_mode="rgb_array",
-                width=400,
-                height=400,
+                width=400, height=400,
                 max_steps=max_steps_per_episode,
                 num_asteroids=num_asteroids,
                 max_asteroid_size=max_asteroid_size,
@@ -282,7 +256,6 @@ while global_step < total_timesteps:
             epsilon_eval=0.0
         )
         print(f"Eval → avg={avg_score:.3f}, best={best_score:.3f}, complete={complete_rate*100:.1f}%")
-
 
 envs.close()
 print("Training complete.")
