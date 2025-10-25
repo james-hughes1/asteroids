@@ -85,6 +85,7 @@ epsilon_decay = config.get("epsilon_decay", 1_000_000)
 
 num_asteroids = config.get("num_asteroids", 5)
 max_asteroid_size = config.get("max_asteroid_size", 90)
+min_asteroid_size = config.get("min_asteroid_size", 30)
 max_asteroid_speed_start = config.get("max_asteroid_speed_start", 0.5)
 max_asteroid_speed_end = config.get("max_asteroid_speed_end", 2.5)
 max_asteroid_speed = max_asteroid_speed_start
@@ -130,6 +131,7 @@ def make_env():
             max_steps=max_steps_per_episode,
             num_asteroids=num_asteroids,
             max_asteroid_size=max_asteroid_size,
+            min_asteroid_size=min_asteroid_size,
             max_asteroid_speed=current_max_speed[0],
             death_reward=death_reward,
             asteroid_destroyed_reward_scalar=asteroid_destroyed_reward_scalar,
@@ -375,6 +377,7 @@ while frame_idx < max_frames:
                 max_steps=max_steps_per_episode,
                 num_asteroids=num_asteroids,
                 max_asteroid_size=max_asteroid_size,
+                min_asteroid_size=min_asteroid_size,
                 max_asteroid_speed=current_max_speed[0],
                 death_reward=death_reward,
                 asteroid_destroyed_reward_scalar=asteroid_destroyed_reward_scalar,

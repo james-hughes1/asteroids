@@ -8,10 +8,11 @@ n_actions: 5
 max_frames: 10_000_000
 frame_idx_start: 0
 max_steps_per_episode: 1_000
-max_asteroid_size: 120
-num_asteroids: 2
-max_asteroid_speed_start: 1.5
-max_asteroid_speed_end: 1.5
+max_asteroid_size: 50
+min_asteroid_size: 50
+num_asteroids: 7
+max_asteroid_speed_start: 0.5
+max_asteroid_speed_end: 0.5
 max_asteroid_speed_ramp: 2_000_000
 
 death_reward: -1.0

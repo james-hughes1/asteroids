@@ -8,7 +8,7 @@ import random
 class AsteroidsEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self, render_mode="rgb_array", width=128, height=128, max_steps=1000, num_asteroids=5, max_asteroid_size=90, max_asteroid_speed=0.5, death_reward=-1.0, asteroid_destroyed_reward_scalar=1.0, frame_skip=1):
+    def __init__(self, render_mode="rgb_array", width=128, height=128, max_steps=1000, num_asteroids=5, max_asteroid_size=90, min_asteroid_size=30, max_asteroid_speed=0.5, death_reward=-1.0, asteroid_destroyed_reward_scalar=1.0, frame_skip=1):
         super().__init__()
 
         self.width = width
@@ -16,6 +16,7 @@ class AsteroidsEnv(gym.Env):
         self.max_steps = max_steps
         self.num_asteroids = num_asteroids
         self.max_asteroid_size = max_asteroid_size
+        self.min_asteroid_size = min_asteroid_size
         self.max_asteroid_speed = max_asteroid_speed
         self.death_reward = death_reward
         self.asteroid_destroyed_reward_scalar = asteroid_destroyed_reward_scalar
@@ -197,7 +198,7 @@ class AsteroidsEnv(gym.Env):
                     hit = True
                     self.bullets.remove(b)
                     reward += ((self.max_asteroid_size/size)**1.5) * self.asteroid_destroyed_reward_scalar  # smaller asteroids give more reward
-                    if size > 30:
+                    if size > (2*self.min_asteroid_size):
                         # split asteroid
                         for _ in range(2):
                             ndx, ndy = random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed), random.uniform(-self.max_asteroid_speed, self.max_asteroid_speed)
