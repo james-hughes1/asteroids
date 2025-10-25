@@ -215,9 +215,11 @@ while frame_idx < max_frames:
         q_values = policy_net(state_tensor)
         greedy_actions = q_values.argmax(dim=1).cpu().numpy()
 
-    random_actions = np.random.randint(0, n_actions, size=num_envs)
-    should_explore = np.random.rand(num_envs) < epsilon
-    actions = np.where(should_explore, random_actions, greedy_actions)
+        actions = greedy_actions
+
+    # Reset noise each step (NoisyNet)
+    if hasattr(policy_net, "reset_noise"):
+        policy_net.reset_noise()
 
     logging_action_counts[greedy_actions] += 1
 
@@ -254,6 +256,9 @@ while frame_idx < max_frames:
 
     states = np.stack(next_states)  # convert to array at the end
     frame_idx += (frame_skip * num_envs)  # we advanced frame_skip * num_envs frames at once
+
+    if hasattr(policy_net, "reset_noise"):
+        policy_net.reset_noise()
 
     # --- Train the DQN ---
     if len(replay_buffer.buffer) > batch_size:
