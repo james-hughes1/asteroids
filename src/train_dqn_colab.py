@@ -274,11 +274,12 @@ while frame_idx < max_frames:
         d = torch.tensor(d, dtype=torch.float32).unsqueeze(1).to(device)
         weights = torch.tensor(weights, dtype=torch.float32).unsqueeze(1).to(device)
 
-        q_all = policy_net(s).detach().cpu().numpy()
-        q_values = policy_net(s).gather(1, a)
         # Reset noise each step (NoisyNet)
         if hasattr(policy_net, "reset_noise"):
             policy_net.reset_noise()
+
+        q_all = policy_net(s).detach().cpu().numpy()
+        q_values = policy_net(s).gather(1, a)
         next_actions = policy_net(ns).argmax(1, keepdim=True)
         next_q = target_net(ns).gather(1, next_actions).detach()
         target = r + gamma * next_q * (1 - d)
