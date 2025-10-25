@@ -20,7 +20,7 @@ clip_coef: 0.2                # PPO clipping coefficient
 ent_coef: 0.01                # Entropy bonus coefficient
 vf_coef: 0.5                  # Value loss coefficient
 max_grad_norm: 0.5            # Gradient clipping
-learning_rate: 3e-4           # Adam learning rate
+learning_rate: 0.0003           # Adam learning rate
 frame_skip: 1                  # Frames to skip per action
 max_steps_per_episode: 1000    # Max steps before episode ends
 
