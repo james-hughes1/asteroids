@@ -252,8 +252,7 @@ while global_step < total_timesteps:
             device,
             num_frames,
             max_steps_per_episode,
-            num_eval_episodes=eval_episodes,
-            epsilon_eval=0.0
+            num_eval_episodes=eval_episodes
         )
         print(f"Eval → avg={avg_score:.3f}, best={best_score:.3f}, complete={complete_rate*100:.1f}%")
 
