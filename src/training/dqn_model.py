@@ -126,12 +126,12 @@ class DuelingDQN(nn.Module):
 
         # conv body (unchanged)
         self.conv = nn.Sequential(
-            nn.Conv2d(c, 32, kernel_size=8, stride=4, padding_mode="circular"),
-            nn.ReLU(),
+            nn.Conv2d(c, 32, kernel_size=8, stride=4),
+            nn.SiLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding_mode="circular"),
-            nn.ReLU(),
+            nn.SiLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1, padding_mode="circular"),
-            nn.ReLU()
+            nn.SiLU()
         )
 
         conv_out_size = self._get_conv_out(input_shape)
@@ -159,7 +159,8 @@ class DuelingDQN(nn.Module):
         # x shape: (B, C, H, W)
         conv_out = self.conv(x)
         conv_out = conv_out.view(conv_out.size(0), -1)
-        x = F.relu(self.fc_common(conv_out))
+        conv_out = F.layer_norm(conv_out, conv_out.shape[1:])
+        x = F.silu(self.fc_common(conv_out))
 
         value = self.fc_value(x)               # (B, 1)
         adv = self.fc_adv(x)                   # (B, n_actions)
