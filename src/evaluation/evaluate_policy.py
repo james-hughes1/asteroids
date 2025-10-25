@@ -118,7 +118,7 @@ def evaluate_policy(
     print("-" * 46)
     print(f"{'Mean':>8} | {np.mean(scores):10.2f} | {np.mean(step_counts):10.2f} | {mean_score:10.4f}")
 
-    return mean_score, best_score/len(all_frames[best_idx]), worst_score/len(all_frames[worst_idx]), all_frames[best_idx], all_frames[worst_idx], complete_rate, cumulative_rewards_full[best_idx]
+    return mean_score, best_score/len(all_frames[best_idx]), worst_score/len(all_frames[worst_idx]), all_frames[best_idx], all_frames[worst_idx], complete_rate, cumulative_rewards_full[best_idx], cumulative_rewards_full[worst_idx]
 
 # --- GIF saving function ---
 def save_gif(frames, filename="gifs/play.gif", network_size=(84,84), scale=4, rewards=None):

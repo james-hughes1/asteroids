@@ -33,10 +33,10 @@ print(yaml.dump(config, sort_keys=False, default_flow_style=False))
 best_reward = -float("inf")
 best_frames = None
 
-avg_reward, best_reward, worst_reward, best_frames, worst_frames, complete_rate, cumulative_rewards = evaluate_policy(env, model, input_shape, args.device, num_frames=num_frames, max_steps=max_steps, num_eval_episodes=args.episodes)
+avg_reward, best_reward, worst_reward, best_frames, worst_frames, complete_rate, best_cumulative_rewards, worst_cumulative_rewards = evaluate_policy(env, model, input_shape, args.device, num_frames=num_frames, max_steps=max_steps, num_eval_episodes=args.episodes)
 
 print(f"Best episode reward = {best_reward:.2f}, Average reward over {args.episodes} episodes = {avg_reward:.2f}, Worst episode reward = {worst_reward:.2f}")
-save_gif(sample_frames(best_frames, n=200), "gifs/best_episode.gif", network_size=(input_shape[1], input_shape[2]), rewards=cumulative_rewards)
-save_gif(sample_frames(worst_frames, n=200), "gifs/worst_episode.gif", network_size=(input_shape[1], input_shape[2]))
+save_gif(sample_frames(best_frames, n=200), "gifs/best_episode.gif", network_size=(input_shape[1], input_shape[2]), rewards=best_cumulative_rewards)
+save_gif(sample_frames(worst_frames, n=200), "gifs/worst_episode.gif", network_size=(input_shape[1], input_shape[2]), rewards=worst_cumulative_rewards)
 print(f"Complete rate (all asteroids destroyed): {complete_rate*100:.2f}%")
 env.close()

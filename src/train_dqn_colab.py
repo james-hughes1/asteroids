@@ -362,7 +362,7 @@ while frame_idx < max_frames:
             print(f"Results saved to Google Drive: {drive_log_path}")
 
     if frame_idx % eval_interval < (num_envs * frame_skip):
-        avg_score, best_score, worst_score, frames, _, complete_rate, cumulative_rewards = evaluate_policy(
+        avg_score, best_score, worst_score, best_frames, worst_frames, complete_rate, best_cumulative_rewards, worst_cumulative_rewards = evaluate_policy(
             AsteroidsEnv(
                 render_mode="rgb_array",
                 width=400,
@@ -383,11 +383,13 @@ while frame_idx < max_frames:
             num_eval_episodes=eval_episodes,
             epsilon_eval=0.0
         )
-        gif_path = f"gifs/play_{frame_idx}.gif"
-        save_gif(sample_frames(frames, n=500), gif_path, network_size=(input_shape[1], input_shape[2]), rewards=cumulative_rewards)
+        gif_path_best = f"gifs/play_{frame_idx}_best.gif"
+        gif_path_worst = f"gifs/play_{frame_idx}_worst.gif"
+        save_gif(sample_frames(best_frames, n=400), gif_path_best, network_size=(input_shape[1], input_shape[2]), rewards=best_cumulative_rewards)
+        save_gif(sample_frames(worst_frames, n=400), gif_path_worst, network_size=(input_shape[1], input_shape[2]), rewards=worst_cumulative_rewards)
         eval_scores.append(avg_score)
         complete_rates.append(complete_rate)
-        print(f"Saved model + eval (worst={worst_score:.4f}, avg={avg_score:.4f}, best={best_score:.4f}) → {gif_path}, complete rate={complete_rate*100:.2f}%")
+        print(f"Saved model + eval (worst={worst_score:.4f}, avg={avg_score:.4f}, best={best_score:.4f}) → gifs/play_{frame_idx}_x.gif, complete rate={complete_rate*100:.2f}%")
 
 # --- Wrap-up ---
 env.close()
