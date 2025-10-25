@@ -138,23 +138,25 @@ dones_buffer = np.zeros((update_timesteps, num_envs), dtype=np.float32)
 
 
 # -------------------------------
-# 5. PPO training loop
+# 5. PPO training loop (memory-safe)
 # -------------------------------
 global_step = 0
 episode_returns = []
 print(f"Starting PPO training for {total_timesteps:,} steps across {num_envs} envs")
 
 while global_step < total_timesteps:
+    # ---- Rollout collection ----
     for t in range(update_timesteps):
         with torch.no_grad():
+            # states: (num_envs, C, H, W) at current timestep
             s_tensor = torch.tensor(states, dtype=torch.float32, device=device) / 255.0
             action, logprob, value = model.get_action_and_value(s_tensor)
-        
+
         actions = action.cpu().numpy()
         next_obs, rewards, dones, truncs, infos = envs.step(actions)
         rewards = np.clip(rewards, -10, 10)
 
-        # store
+        # store current step in rollout buffer
         obs_buffer[t] = states
         actions_buffer[t] = actions
         logprobs_buffer[t] = logprob.cpu().numpy()
@@ -162,17 +164,17 @@ while global_step < total_timesteps:
         values_buffer[t] = value.cpu().numpy()
         dones_buffer[t] = dones
 
-        # next states
+        # ---- Prepare next states ----
         next_states = []
         for i in range(num_envs):
-            s, obs_stack[i] = stack_frames(obs_stack[i], next_obs[i], dones[i], num_frames, (input_shape[1], input_shape[2]))
+            s, obs_stack[i] = stack_frames(
+                obs_stack[i], next_obs[i], dones[i], num_frames, (input_shape[1], input_shape[2])
+            )
             next_states.append(s)
-        states = np.stack(next_states)
+        states = np.stack(next_states)  # shape: (num_envs, C, H, W)
         global_step += num_envs
 
-    # -------------------------------
-    # Compute advantages (GAE)
-    # -------------------------------
+    # ---- Compute advantages (GAE) ----
     with torch.no_grad():
         s_tensor = torch.tensor(states, dtype=torch.float32, device=device) / 255.0
         next_values = model.get_value(s_tensor).cpu().numpy()
@@ -190,26 +192,23 @@ while global_step < total_timesteps:
         advantages[t] = lastgaelam = delta + gamma * gae_lambda * nextnonterminal * lastgaelam
     returns = advantages + values_buffer
 
-    # -------------------------------
-    # Flatten the rollout data
-    # -------------------------------
-    b_obs = torch.tensor(obs_buffer.reshape(-1, *input_shape), device=device) / 255.0
+    # ---- Flatten rollout data for training ----
+    batch_size = num_envs * update_timesteps
+    b_obs = torch.tensor(obs_buffer.reshape(batch_size, *input_shape), device=device) / 255.0
     b_actions = torch.tensor(actions_buffer.flatten(), device=device)
     b_logprobs = torch.tensor(logprobs_buffer.flatten(), device=device)
     b_advantages = torch.tensor(advantages.flatten(), device=device)
     b_returns = torch.tensor(returns.flatten(), device=device)
     b_values = torch.tensor(values_buffer.flatten(), device=device)
 
-    # -------------------------------
-    # Optimize policy for several epochs
-    # -------------------------------
-    batch_size = num_envs * update_timesteps
+    # ---- PPO optimization ----
     inds = np.arange(batch_size)
     for epoch in range(epochs):
         np.random.shuffle(inds)
         for start in range(0, batch_size, mini_batch_size):
             end = start + mini_batch_size
             mb_inds = inds[start:end]
+
             mb_obs = b_obs[mb_inds]
             mb_actions = b_actions[mb_inds]
             mb_adv = b_advantages[mb_inds]
@@ -217,6 +216,7 @@ while global_step < total_timesteps:
             mb_returns = b_returns[mb_inds]
             mb_values = b_values[mb_inds]
 
+            # Evaluate actions
             newlogprob, entropy, newvalue = model.evaluate_actions(mb_obs, mb_actions)
             logratio = newlogprob - mb_logprob_old
             ratio = torch.exp(logratio)
@@ -239,19 +239,17 @@ while global_step < total_timesteps:
             nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
-    # -------------------------------
-    # Logging / Curriculum / Saving
-    # -------------------------------
+    # ---- Logging / Curriculum / Saving ----
     avg_return = np.mean(np.sum(rewards_buffer, axis=0))
     print(f"Step {global_step:,} | Avg return (batch) = {avg_return:.3f}")
     episode_returns.append(avg_return)
 
-    # Curriculum
+    # Curriculum adjustment
     progress = min(1.0, global_step / max_asteroid_speed_ramp)
     current_max_speed[0] = max_asteroid_speed_start + progress * (max_asteroid_speed_end - max_asteroid_speed_start)
     envs.call("set_difficulty", max_asteroid_speed=current_max_speed[0])
 
-    # Save periodically
+    # Save model periodically
     if global_step % save_interval < update_timesteps:
         save_model(model, config, n_actions, f"models/ppo_model_{global_step}.pth")
         if google_drive_backup:
@@ -260,14 +258,29 @@ while global_step < total_timesteps:
     # Evaluate periodically
     if global_step % eval_interval < update_timesteps:
         avg_score, best_score, worst_score, best_frames, _, complete_rate, _, _ = evaluate_policy(
-            AsteroidsEnv(render_mode="rgb_array", width=400, height=400,
-                         max_steps=max_steps_per_episode, num_asteroids=num_asteroids,
-                         max_asteroid_size=max_asteroid_size, min_asteroid_size=min_asteroid_size,
-                         max_asteroid_speed=current_max_speed[0], death_reward=death_reward,
-                         asteroid_destroyed_reward_scalar=asteroid_destroyed_reward_scalar, frame_skip=1),
-            model, input_shape, device, num_frames, max_steps_per_episode, num_eval_episodes=eval_episodes, epsilon_eval=0.0
+            AsteroidsEnv(
+                render_mode="rgb_array",
+                width=400,
+                height=400,
+                max_steps=max_steps_per_episode,
+                num_asteroids=num_asteroids,
+                max_asteroid_size=max_asteroid_size,
+                min_asteroid_size=min_asteroid_size,
+                max_asteroid_speed=current_max_speed[0],
+                death_reward=death_reward,
+                asteroid_destroyed_reward_scalar=asteroid_destroyed_reward_scalar,
+                frame_skip=1
+            ),
+            model,
+            input_shape,
+            device,
+            num_frames,
+            max_steps_per_episode,
+            num_eval_episodes=eval_episodes,
+            epsilon_eval=0.0
         )
         print(f"Eval → avg={avg_score:.3f}, best={best_score:.3f}, complete={complete_rate*100:.1f}%")
+
 
 envs.close()
 print("Training complete.")

@@ -2,63 +2,71 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
-import numpy as np
-
 
 class PPOActorCritic(nn.Module):
-    """
-    Combined Actor-Critic CNN for PPO.
-    Outputs:
-      - action distribution (Categorical)
-      - value estimate (scalar)
-    """
-
     def __init__(self, input_shape, n_actions):
         super().__init__()
-        c, h, w = input_shape
+        C, H, W = input_shape
 
-        # --- Shared feature extractor ---
+        # CNN feature extractor
         self.conv = nn.Sequential(
-            nn.Conv2d(c, 32, 8, stride=4, padding_mode="circular"),
+            nn.Conv2d(C, 32, kernel_size=8, stride=4, padding=0),  # adjust padding if needed
             nn.ReLU(),
-            nn.Conv2d(32, 64, 4, stride=2, padding_mode="circular"),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=0),
             nn.ReLU(),
-            nn.Conv2d(64, 64, 3, stride=1, padding_mode="circular"),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0),
             nn.ReLU(),
+            nn.Flatten()
         )
 
-        conv_out_size = self._get_conv_out(input_shape)
+        # Compute conv output size
+        with torch.no_grad():
+            dummy_input = torch.zeros(1, C, H, W)
+            conv_out_size = self.conv(dummy_input).shape[1]
 
-        # --- Actor and Critic heads ---
-        self.fc_shared = nn.Linear(conv_out_size, 512)
-        self.actor = nn.Linear(512, n_actions)
-        self.critic = nn.Linear(512, 1)
-
-    def _get_conv_out(self, shape):
-        o = self.conv(torch.zeros(1, *shape))
-        return int(np.prod(o.size()))
+        # Actor head
+        self.actor = nn.Linear(conv_out_size, n_actions)
+        # Critic head
+        self.critic = nn.Linear(conv_out_size, 1)
 
     def forward(self, x):
-        """Forward pass for both actor and critic."""
-        x = x / 255.0
+        """
+        Forward pass returning logits and value.
+        x: tensor (batch_size, C, H, W)
+        """
         features = self.conv(x)
-        features = features.view(features.size(0), -1)
-        x = F.relu(self.fc_shared(features))
+        logits = self.actor(features)
+        value = self.critic(features).squeeze(-1)
+        return logits, value
 
-        logits = self.actor(x)
-        value = self.critic(x)
+    def get_action_and_value(self, x, action=None):
+        """
+        For rollout: sample action from policy, return logprob and value.
+        x: tensor (batch_size, C, H, W)
+        action: optional tensor of actions (used during evaluation)
+        """
+        logits, value = self.forward(x)
         dist = Categorical(logits=logits)
-        return dist, value
-    
-    def get_action_and_value(self, obs, action=None):
-        """
-        Returns action, log probability, entropy, and value estimate for PPO.
-        If `action` is provided, it just evaluates that action (used for advantage calculation).
-        """
-        logits, value = self.forward(obs)
-        probs = torch.distributions.Categorical(logits=logits)
         if action is None:
-            action = probs.sample()
-        logprob = probs.log_prob(action)
-        entropy = probs.entropy()
-        return action, logprob, entropy, value
+            action = dist.sample()
+        logprob = dist.log_prob(action)
+        return action, logprob, value
+
+    def get_value(self, x):
+        """
+        Return value only (for GAE computation)
+        """
+        _, value = self.forward(x)
+        return value
+
+    def evaluate_actions(self, x, actions):
+        """
+        For PPO update: logprobs, entropy, and value for given actions
+        x: tensor (batch_size, C, H, W)
+        actions: tensor of actions (batch_size,)
+        """
+        logits, value = self.forward(x)
+        dist = Categorical(logits=logits)
+        logprobs = dist.log_prob(actions)
+        entropy = dist.entropy()
+        return logprobs, entropy, value
