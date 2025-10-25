@@ -50,6 +50,8 @@ def evaluate_policy(
     n_actions = env.action_space.n
     cumulative_rewards_full = []
 
+    policy_net.eval()
+
     for ep in range(num_eval_episodes):
         stacked_frames = deque(maxlen=num_frames)
         # Optionally seed environment for reproducibility
@@ -117,6 +119,8 @@ def evaluate_policy(
     # Means
     print("-" * 46)
     print(f"{'Mean':>8} | {np.mean(scores):10.2f} | {np.mean(step_counts):10.2f} | {mean_score:10.4f}")
+
+    policy_net.train()
 
     return mean_score, best_score/len(all_frames[best_idx]), worst_score/len(all_frames[worst_idx]), all_frames[best_idx], all_frames[worst_idx], complete_rate, cumulative_rewards_full[best_idx], cumulative_rewards_full[worst_idx]
 
