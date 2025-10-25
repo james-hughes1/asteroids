@@ -55,7 +55,7 @@ def evaluate_policy(
         # Optionally seed environment for reproducibility
         obs, _ = env.reset(seed=base_seed + ep if deterministic else None)
         state, stacked_frames = stack_frames(
-            stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2])
+            stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2]), rgb=False
         )
 
         done = False
@@ -81,7 +81,7 @@ def evaluate_policy(
 
             obs, reward, done, truncated, info = env.step(action)
             state, stacked_frames = stack_frames(
-                stacked_frames, obs, False, num_frames, (input_shape[1], input_shape[2])
+                stacked_frames, obs, False, num_frames, (input_shape[1], input_shape[2]), rgb=False
             )
             total_reward += reward
             cumulative_rewards.append(total_reward)
