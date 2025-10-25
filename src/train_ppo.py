@@ -118,10 +118,10 @@ for i in range(num_envs):
     s, obs_stack[i] = stack_frames(obs_stack[i], obs[i], True, num_frames, config["input_shape_2d"])
     s = s.reshape(-1, *config["input_shape_2d"])  # flatten frames into channels
     states.append(s)
-states = np.stack(states)  # shape: (num_envs, C, H, W)
+states = np.stack(states).astype(np.uint8)  # shape: (num_envs, C, H, W)
 
 # Rollout buffers
-obs_buffer = np.zeros((update_timesteps, num_envs, *input_shape), dtype=np.float32)
+obs_buffer = np.zeros((update_timesteps, num_envs, *input_shape), dtype=np.uint8)
 actions_buffer = np.zeros((update_timesteps, num_envs), dtype=np.int32)
 logprobs_buffer = np.zeros((update_timesteps, num_envs), dtype=np.float32)
 rewards_buffer = np.zeros((update_timesteps, num_envs), dtype=np.float32)

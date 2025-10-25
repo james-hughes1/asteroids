@@ -1,56 +1,45 @@
-# --- General ---
+# -------------------------------
+# Environment settings
+# -------------------------------
+num_envs: 16                  # Number of parallel environments
+num_frames: 5                 # Number of frames stacked as input
+channels_per_frame: 3         # RGB channels per frame
+input_shape_2d: [96, 96]   # HxW input size
+n_actions: 5                  # Number of discrete actions
+
+# -------------------------------
+# PPO Hyperparameters
+# -------------------------------
+max_frames: 10_000_000          # Total environment steps
+update_timesteps: 4096        # Steps per PPO update (rollout length)
+ppo_epochs: 4                 # Number of PPO epochs per update
+mini_batch_size: 256           # Mini-batch size for optimization
+gamma: 0.99                   # Discount factor
+gae_lambda: 0.95              # Lambda for GAE
+clip_coef: 0.2                # PPO clipping coefficient
+ent_coef: 0.01                # Entropy bonus coefficient
+vf_coef: 0.5                  # Value loss coefficient
+max_grad_norm: 0.5            # Gradient clipping
+learning_rate: 3e-4           # Adam learning rate
+frame_skip: 1                  # Frames to skip per action
+max_steps_per_episode: 1000    # Max steps before episode ends
+
+# -------------------------------
+# Curriculum / Environment scaling
+# -------------------------------
+num_asteroids: 5
+max_asteroid_size: 90
+min_asteroid_size: 30
+max_asteroid_speed_start: 0.5
+max_asteroid_speed_end: 2.5
+max_asteroid_speed_ramp: 1_000_000
+death_reward: -1.0
+asteroid_destroyed_reward_scalar: 1.0
+
+# -------------------------------
+# Logging / saving
+# -------------------------------
 save_interval: 500_000
 eval_interval: 200_000
-log_interval: 10_000
 google_drive_backup: true
-
-# --- Environment ---
-width: 400
-height: 400
-max_steps_per_episode: 1_000
-num_asteroids: 3
-max_asteroid_size: 120
-min_asteroid_size: 50
-death_reward: -1.0
-asteroid_destroyed_reward_scalar: 0.5
-frame_skip: 1
-num_envs: 16
-
-# --- Observation ---
-num_frames: 5           # stacked frames
-channels_per_frame: 3
-input_shape_2d: [128, 128]
-n_actions: 5
-
-# --- PPO Hyperparameters ---
-gamma: 0.99
-gae_lambda: 0.95
-clip_epsilon: 0.2
-ppo_epochs: 4
-mini_batch_size: 256
-rollout_length: 2048
-
-# --- Optimization ---
-learning_rate: 3.0e-4
-max_grad_norm: 0.5
-entropy_coef: 0.01
-value_loss_coef: 0.5
-batch_size: 8192  # rollout_length * num_envs ideally
-normalize_advantages: true
-
-# --- Curriculum ---
-max_asteroid_speed_start: 1.0
-max_asteroid_speed_end: 1.0
-max_asteroid_speed_ramp: 1_000_000
-
-# --- Evaluation ---
-eval_episodes: 10
-epsilon_eval: 0.0
-deterministic_eval: true
-
-# --- Model ---
-hidden_size: 512
-feature_channels: 32
-
-# --- Max Frames ---
-max_frames: 40_000_000
+eval_episodes: 5
