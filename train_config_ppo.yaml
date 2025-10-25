@@ -40,6 +40,6 @@ asteroid_destroyed_reward_scalar: 1.0
 # Logging / saving
 # -------------------------------
 save_interval: 500_000
-eval_interval: 200_000
+eval_interval: 100_000
 google_drive_backup: true
 eval_episodes: 5
