@@ -21,7 +21,7 @@ from utils.preprocess import preprocess_frame, stack_frames
 from utils.model_io import save_model
 from evaluation.evaluate_policy import evaluate_policy, save_gif, sample_frames
 
-from training.ppo_model import ActorCritic
+from training.ppo_model import PPOActorCritic
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -114,7 +114,7 @@ obs, _ = envs.reset()
 # -------------------------------
 # 3. Initialize PPO model
 # -------------------------------
-model = ActorCritic(input_shape, n_actions).to(device)
+model = PPOActorCritic(input_shape, n_actions).to(device)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-5)
 
 
