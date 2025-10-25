@@ -1,17 +1,17 @@
 # config/train_config.yaml
 
 num_frames: 4
-channels_per_frame: 1
-input_shape_2d: [96, 96]
+channels_per_frame: 3
+input_shape_2d: [128, 128]
 n_actions: 5
 
 max_frames: 10_000_000
 frame_idx_start: 0
-max_steps_per_episode: 400
-max_asteroid_size: 30
-num_asteroids: 7
-max_asteroid_speed_start: 0.5
-max_asteroid_speed_end: 0.5
+max_steps_per_episode: 1_000
+max_asteroid_size: 120
+num_asteroids: 2
+max_asteroid_speed_start: 1.5
+max_asteroid_speed_end: 1.5
 max_asteroid_speed_ramp: 2_000_000
 
 death_reward: -1.0
@@ -24,7 +24,7 @@ epsilon_final: 0.05
 epsilon_decay: 1_000_000
 
 batch_size: 64
-learning_rate_start: 0.0001
+learning_rate_start: 0.0005
 learning_rate_decay: 0.8
 learning_rate_interval: 2_000_000
 
