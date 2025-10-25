@@ -169,7 +169,7 @@ env_returns = np.zeros(num_envs, dtype=np.float32)
 completed_returns = []  # stores rewards of finished episodes
 
 for i in range(num_envs):
-    s, stacked_frames[i] = stack_frames(stacked_frames[i], obs[i], True, num_frames, (input_shape[1], input_shape[2]))
+    s, stacked_frames[i] = stack_frames(stacked_frames[i], obs[i], True, num_frames, (input_shape[1], input_shape[2]), rgb=False)
     states.append(s)
 states = np.stack(states)
 
@@ -247,7 +247,7 @@ while frame_idx < max_frames:
     next_states = []
     for i in range(num_envs):
         ns, stacked_frames[i] = stack_frames(
-            stacked_frames[i], next_obs[i], dones_any[i], num_frames, (input_shape[1], input_shape[2])
+            stacked_frames[i], next_obs[i], dones_any[i], num_frames, (input_shape[1], input_shape[2]), rgb=False
         )
         replay_buffer.push(states[i], actions[i], total_rewards[i], ns, dones_any[i])
         next_states.append(ns)
