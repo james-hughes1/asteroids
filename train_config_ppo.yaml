@@ -27,14 +27,14 @@ max_steps_per_episode: 1000    # Max steps before episode ends
 # -------------------------------
 # Curriculum / Environment scaling
 # -------------------------------
-num_asteroids: 5
-max_asteroid_size: 90
-min_asteroid_size: 30
-max_asteroid_speed_start: 0.5
-max_asteroid_speed_end: 2.5
+num_asteroids: 3
+max_asteroid_size: 120
+min_asteroid_size: 50
+max_asteroid_speed_start: 1.0
+max_asteroid_speed_end: 1.0
 max_asteroid_speed_ramp: 1_000_000
 death_reward: -1.0
-asteroid_destroyed_reward_scalar: 1.0
+asteroid_destroyed_reward_scalar: 0.5
 
 # -------------------------------
 # Logging / saving
