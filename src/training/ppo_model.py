@@ -49,3 +49,16 @@ class PPOActorCritic(nn.Module):
         value = self.critic(x)
         dist = Categorical(logits=logits)
         return dist, value
+    
+    def get_action_and_value(self, obs, action=None):
+        """
+        Returns action, log probability, entropy, and value estimate for PPO.
+        If `action` is provided, it just evaluates that action (used for advantage calculation).
+        """
+        logits, value = self.forward(obs)
+        probs = torch.distributions.Categorical(logits=logits)
+        if action is None:
+            action = probs.sample()
+        logprob = probs.log_prob(action)
+        entropy = probs.entropy()
+        return action, logprob, entropy, value
