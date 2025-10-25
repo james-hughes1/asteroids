@@ -150,7 +150,7 @@ while global_step < total_timesteps:
         with torch.no_grad():
             # states: (num_envs, C, H, W) at current timestep
             s_tensor = torch.tensor(states, dtype=torch.float32, device=device) / 255.0
-            s_tensor = s_tensor.view(num_envs, num_frames * channels_per_frame, input_shape[1], input_shape[2])
+            s_tensor = s_tensor.reshape(num_envs, num_frames * channels_per_frame, input_shape[1], input_shape[2])
             action, logprob, value = model.get_action_and_value(s_tensor)
 
         actions = action.cpu().numpy()
@@ -178,7 +178,7 @@ while global_step < total_timesteps:
     # ---- Compute advantages (GAE) ----
     with torch.no_grad():
         s_tensor = torch.tensor(states, dtype=torch.float32, device=device) / 255.0
-        s_tensor = s_tensor.view(num_envs, num_frames * channels_per_frame, input_shape[1], input_shape[2])
+        s_tensor = s_tensor.reshape(num_envs, num_frames * channels_per_frame, input_shape[1], input_shape[2])
         next_values = model.get_value(s_tensor).cpu().numpy()
 
     advantages = np.zeros_like(rewards_buffer)
