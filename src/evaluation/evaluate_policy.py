@@ -17,6 +17,108 @@ def evaluate_policy(
     num_eval_episodes,
     base_seed=42,
     deterministic=True,
+):
+    """
+    Evaluate a PPO policy (or any policy network producing action distributions).
+
+    Args:
+        env: Gym-like environment
+        policy_net: PPO policy network (outputs action logits and value)
+        input_shape: (C, H, W)
+        device: torch.device
+        num_frames: number of stacked frames
+        max_steps: maximum steps per episode
+        num_eval_episodes: how many episodes to average over
+        base_seed: reproducibility seed
+        deterministic: if True, use argmax actions; otherwise sample from policy
+
+    Returns:
+        mean_score, best_score, worst_score, best_frames, worst_frames, complete_rate, best_rewards, worst_rewards
+    """
+    scores, all_frames, step_counts = [], [], []
+    cumulative_rewards_full = []
+    complete_rate = 0.0
+    n_actions = env.action_space.n
+
+    policy_net.eval()
+
+    for ep in range(num_eval_episodes):
+        stacked_frames = deque(maxlen=num_frames)
+        obs, _ = env.reset(seed=base_seed + ep if deterministic else None)
+        state, stacked_frames = stack_frames(stacked_frames, obs, True, num_frames, (input_shape[1], input_shape[2]))
+
+        done = False
+        total_reward = 0.0
+        steps = 0
+        frames = []
+        cumulative_rewards = []
+
+        while not done and steps < max_steps:
+            state_tensor = torch.tensor(np.array([state]), dtype=torch.float32).to(device)
+            state_tensor = state_tensor.view(1, *input_shape) / 255.0
+
+            with torch.no_grad():
+                action_dist, _ = policy_net(state_tensor)
+                if deterministic:
+                    action = torch.argmax(action_dist.probs, dim=-1).item()
+                else:
+                    action = action_dist.sample().item()
+
+            obs, reward, done, truncated, info = env.step(action)
+            state, stacked_frames = stack_frames(stacked_frames, obs, False, num_frames, (input_shape[1], input_shape[2]))
+
+            total_reward += reward
+            steps += 1
+            frames.append(obs)
+            cumulative_rewards.append(total_reward)
+
+        if len(env.asteroids) == 0:
+            complete_rate += 1.0
+
+        scores.append(total_reward)
+        step_counts.append(steps)
+        all_frames.append(frames)
+        cumulative_rewards_full.append(cumulative_rewards)
+
+    complete_rate /= num_eval_episodes
+
+    mean_score = np.sum(scores) / np.sum(step_counts)
+    best_idx = int(np.argmax(scores))
+    worst_idx = int(np.argmin(scores))
+    best_score, worst_score = scores[best_idx], scores[worst_idx]
+
+    print("\nEvaluation Results:")
+    print(f"{'Episode':>8} | {'Score':>10} | {'Steps':>10} | {'Avg.Step.Rew':>12}")
+    print("-" * 50)
+    for i, (s, steps) in enumerate(zip(scores, step_counts), 1):
+        print(f"{i:8d} | {s:10.2f} | {steps:10d} | {s/steps if steps>0 else 0:12.4f}")
+    print("-" * 50)
+    print(f"{'Mean':>8} | {np.mean(scores):10.2f} | {np.mean(step_counts):10.1f} | {mean_score:12.4f}")
+
+    policy_net.train()
+
+    return (
+        mean_score,
+        best_score / len(all_frames[best_idx]),
+        worst_score / len(all_frames[worst_idx]),
+        all_frames[best_idx],
+        all_frames[worst_idx],
+        complete_rate,
+        cumulative_rewards_full[best_idx],
+        cumulative_rewards_full[worst_idx],
+    )
+
+
+def evaluate_policy_dqn(
+    env,
+    policy_net,
+    input_shape,
+    device,
+    num_frames,
+    max_steps,
+    num_eval_episodes,
+    base_seed=42,
+    deterministic=True,
     epsilon_eval=0.0,
 ):
     """
