@@ -40,7 +40,7 @@ init_model_path = config.get("init_model_path", "")  # optional init model
 # Load from checkpoint if available
 if init_model_path and os.path.isfile(init_model_path):
     print(f"Loading initial model from {init_model_path}")
-    policy_net, checkpoint_config, n_actions = load_model(init_model_path, device)
+    model, checkpoint_config, n_actions = load_model(init_model_path, device)
     print("Loaded config:")
     print(yaml.dump(checkpoint_config, sort_keys=False, default_flow_style=False))
     num_frames = checkpoint_config.get("num_frames", 5)
