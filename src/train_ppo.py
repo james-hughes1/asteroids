@@ -194,6 +194,10 @@ while global_step < total_timesteps:
 
     # PPO update
     inds = np.arange(batch_size)
+    # Initialize stats
+    total_pg_loss, total_v_loss, total_entropy = 0, 0, 0
+    n_batches = 0
+
     for epoch in range(epochs):
         np.random.shuffle(inds)
         for start in range(0, batch_size, mini_batch_size):
@@ -219,9 +223,25 @@ while global_step < total_timesteps:
             nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             optimizer.step()
 
+            total_pg_loss += pg_loss.item()
+            total_v_loss += v_loss.item()
+            total_entropy += entropy_loss.item()
+            n_batches += 1
+    
+    avg_pg_loss = total_pg_loss / n_batches
+    avg_v_loss = total_v_loss / n_batches
+    avg_entropy = total_entropy / n_batches
+
     # Logging, curriculum, saving
     avg_return = np.mean(np.sum(rewards_buffer, axis=0))
-    print(f"Step {global_step:,} | Avg return = {avg_return:.3f}")
+    avg_steps = np.mean(np.sum(~dones_buffer, axis=0))
+    print(f"Step {global_step:,} | Avg return: {avg_return:.3f} | "
+        f"Avg steps/episode: {avg_steps:.1f} | "
+        f"Policy loss: {avg_pg_loss:.4f} | Value loss: {avg_v_loss:.4f} | Entropy: {avg_entropy:.4f} | "
+        f"Max speed: {current_max_speed[0]:.2f}")
+    print(f"Advantage | mean: {b_advantages.mean():.3f}, std: {b_advantages.std():.3f}")
+    print(f"Value | mean: {b_returns.mean():.3f}, std: {b_returns.std():.3f}")
+
     episode_returns.append(avg_return)
 
     progress = min(1.0, global_step / max_asteroid_speed_ramp)
