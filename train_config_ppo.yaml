@@ -6,6 +6,7 @@ num_frames: 5                 # Number of frames stacked as input
 channels_per_frame: 3         # RGB channels per frame
 input_shape_2d: [96, 96]   # HxW input size
 n_actions: 5                  # Number of discrete actions
+init_model_path: "/content/drive/MyDrive/asteroids_models/run_2025-10-26_11-30-43/ppo_model_6007632.pth"          # Path to pre-trained model (if any)
 
 # -------------------------------
 # PPO Hyperparameters
@@ -20,7 +21,7 @@ clip_coef: 0.2                # PPO clipping coefficient
 ent_coef: 0.01                # Entropy bonus coefficient
 vf_coef: 0.5                  # Value loss coefficient
 max_grad_norm: 0.5            # Gradient clipping
-learning_rate: 0.00001           # Adam learning rate
+learning_rate: 0.000001           # Adam learning rate
 frame_skip: 1                  # Frames to skip per action
 max_steps_per_episode: 2000    # Max steps before episode ends
 
@@ -33,8 +34,8 @@ min_asteroid_size: 20
 max_asteroid_speed_start: 0.5
 max_asteroid_speed_end: 2.0
 max_asteroid_speed_ramp: 3_000_000
-death_reward: -1.0
-asteroid_destroyed_reward_scalar: 0.1
+death_reward: -5.0
+asteroid_destroyed_reward_scalar: 0.5
 
 # -------------------------------
 # Logging / saving

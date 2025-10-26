@@ -16,7 +16,7 @@ from gymnasium.vector import AsyncVectorEnv
 
 from asteroids_env.env import AsteroidsEnv
 from utils.preprocess import stack_frames
-from utils.model_io import save_model
+from utils.model_io import save_model, load_model
 from evaluation.evaluate_policy import evaluate_policy, save_gif, sample_frames
 
 from training.ppo_model import PPOActorCritic
@@ -32,11 +32,30 @@ args = parser.parse_args()
 with open(args.config, "r") as f:
     config = yaml.safe_load(f)
 
+# -------------------------------
+# 2. Initialize PPO model
+# -------------------------------
+init_model_path = config.get("init_model_path", "")  # optional init model
+
+# Load from checkpoint if available
+if init_model_path and os.path.isfile(init_model_path):
+    print(f"Loading initial model from {init_model_path}")
+    policy_net, checkpoint_config, n_actions = load_model(init_model_path, device)
+    print("Loaded config:")
+    print(yaml.dump(checkpoint_config, sort_keys=False, default_flow_style=False))
+    num_frames = checkpoint_config.get("num_frames", 5)
+    channels_per_frame = checkpoint_config.get("channels_per_frame", 3)
+    input_shape = (num_frames * channels_per_frame, *checkpoint_config["input_shape_2d"])
+else:
+    print("Starting training from scratch.")
+    num_frames = config.get("num_frames", 5)
+    channels_per_frame = config.get("channels_per_frame", 3)
+    input_shape = tuple([num_frames * channels_per_frame, *config["input_shape_2d"]])
+    n_actions = config.get("n_actions", 5)
+    model = PPOActorCritic(input_shape, n_actions).to(device)
+
+# Parallel envs
 num_envs = min(config.get("num_envs", 16), os.cpu_count() or 1)
-num_frames = config.get("num_frames", 5)
-channels_per_frame = config.get("channels_per_frame", 3)
-input_shape = (num_frames * channels_per_frame, *config["input_shape_2d"])
-n_actions = config.get("n_actions", 5)
 
 # PPO hyperparameters
 total_timesteps = config.get("max_frames", 10_000_000)
@@ -79,7 +98,7 @@ os.makedirs("logs", exist_ok=True)
 os.makedirs("gifs", exist_ok=True)
 
 # -------------------------------
-# 2. Build vectorized envs
+# 3. Build vectorized envs
 # -------------------------------
 current_max_speed = [max_asteroid_speed_start]
 
@@ -104,12 +123,6 @@ envs = AsyncVectorEnv([make_env() for _ in range(num_envs)], autoreset_mode=gym.
 obs, _ = envs.reset()
 
 # -------------------------------
-# 3. Initialize PPO model
-# -------------------------------
-model = PPOActorCritic(input_shape, n_actions).to(device)
-optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-5)
-
-# -------------------------------
 # 4. Storage
 # -------------------------------
 obs_stack = [deque(maxlen=num_frames) for _ in range(num_envs)]
@@ -119,6 +132,8 @@ for i in range(num_envs):
     s = s.reshape(-1, *config["input_shape_2d"])  # flatten frames into channels
     states.append(s)
 states = np.stack(states).astype(np.uint8)  # shape: (num_envs, C, H, W)
+
+optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-5)
 
 # Rollout buffers
 obs_buffer = np.zeros((update_timesteps, num_envs, *input_shape), dtype=np.uint8)
