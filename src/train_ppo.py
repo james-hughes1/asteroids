@@ -234,7 +234,7 @@ while global_step < total_timesteps:
 
     # Logging, curriculum, saving
     avg_return = np.mean(np.sum(rewards_buffer, axis=0))
-    avg_steps = np.mean(np.sum(~dones_buffer, axis=0))
+    avg_steps = np.mean(np.sum(1 - dones_buffer, axis=0))
     print(f"Step {global_step:,} | Avg return: {avg_return:.3f} | "
         f"Avg steps/episode: {avg_steps:.1f} | "
         f"Policy loss: {avg_pg_loss:.4f} | Value loss: {avg_v_loss:.4f} | Entropy: {avg_entropy:.4f} | "
